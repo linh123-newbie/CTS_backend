@@ -24,6 +24,16 @@ public class RolesController : ControllerBase
     [HttpGet("test")]
     public async Task<ActionResult<string>> Test()
     {
-        return await Task.FromResult(Ok("hello linh beautiful"));
+        return await Task.FromResult(Ok("hello linh beautiful hihih"));
+    }
+    [HttpGet("test1")]
+    public async Task<ActionResult<string>> Test1()
+    {
+        return await Task.FromResult(Ok("i will have a good job after graduation"));
+    }
+    [HttpGet("test2")]
+    public async Task<ActionResult<string>> Test2()
+    {
+        return await Task.FromResult(Ok("i will have extra data for my thesis"));
     }
 }
