@@ -1,0 +1,71 @@
+name: Deploy CTS Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Clean local publish folder
+        run: rm -rf ./publish
+
+      - name: Publish
+        run: dotnet publish -c Release -o ./publish
+
+      - name: Clean temp folder on VPS
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            rm -rf /tmp/cts-backend_publish
+            mkdir -p /tmp/cts-backend_publish
+
+      - name: Copy files to VPS temp folder
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "publish/*"
+          target: "/tmp/cts-backend_publish"
+          strip_components: 1
+
+      - name: Deploy and restart service
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            sudo systemctl stop cts-backend || true
+
+            sudo find /var/www/cts-backend -mindepth 1 \
+              ! -name 'appsettings.json' \
+              ! -name 'appsettings.Development.json' \
+              ! -name 'appsettings.Production.json' \
+              -exec rm -rf {} +
+
+            sudo cp -a /tmp/cts-backend_publish/. /var/www/cts-backend/
+
+            sudo systemctl start cts-backend
+            sudo systemctl status cts-backend --no-pager
