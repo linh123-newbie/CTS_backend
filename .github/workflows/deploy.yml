@@ -57,12 +57,14 @@ jobs:
           key: ${{ secrets.VPS_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            sudo find /var/www/cts_backend -mindepth 1 \
+            set -e
+
+            find /var/www/cts_backend -mindepth 1 \
               ! -name 'appsettings.json' \
               ! -name 'appsettings.Development.json' \
               ! -name 'appsettings.Production.json' \
               -exec rm -rf {} +
 
-            sudo cp -a /tmp/cts_backend_publish/. /var/www/cts_backend/
+            cp -a /tmp/cts_backend_publish/. /var/www/cts_backend/
 
-            sudo systemctl restart cts-backend 
+            sudo systemctl restart cts-backend
