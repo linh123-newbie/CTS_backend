@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CTS_backend.Models;
 
-public class Role
+public class Roles
 {
     //hello
     [Key]

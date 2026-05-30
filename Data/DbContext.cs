@@ -9,9 +9,11 @@ public class AppDbContext : DbContext
     {
     }
 
-    public DbSet<Role> Roles { get; set; }
+    public DbSet<Roles> Roles { get; set; }
+    public DbSet<Users> Users { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-       modelBuilder.Entity<Role>().ToTable("roles");
+       modelBuilder.Entity<Roles>().ToTable("roles");
+       modelBuilder.Entity<Users>().ToTable("users");
     }
 }

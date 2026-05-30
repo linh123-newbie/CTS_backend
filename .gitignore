@@ -2,6 +2,6 @@ bin/
 obj/
 publish/
 
-appsettings.json
+appsettings.example.json
 appsettings.Development.json
 appsettings.Production.json

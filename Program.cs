@@ -22,6 +22,7 @@ builder.Services.AddCors(options =>
     });
 });
 
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -30,7 +31,11 @@ app.UseSwaggerUI();
 
 
 app.UseHttpsRedirection();
-app.UseCors("cors");
+app.UseCors("AllowFrontend");
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 app.Run();
 
