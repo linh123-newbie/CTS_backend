@@ -26,7 +26,6 @@ public class QuestionController : ControllerBase
             {
                 q.Id,
                 q.Content,
-                q.QuestionTypeId,
                 Answers = q.Answers.Select(a => new
                 {
                     a.Id,
@@ -48,7 +47,6 @@ public class QuestionController : ControllerBase
             {
                 q.Id,
                 q.Content,
-                q.QuestionTypeId,
                 Answers = q.Answers.Select(a => new
                 {
                     a.Id,
