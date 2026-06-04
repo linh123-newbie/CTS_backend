@@ -9,11 +9,12 @@ public class Users
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     [Column("id")]
-    public int id { get; set; }
+    public int Id { get; set; }
     [Column("google_id")]
     public String GoogleId { get; set; } = string.Empty;
     [Column("name")]
     public String Name { get; set; } = string.Empty;
-    [Column("image_url")]
-    public String ImageUrl { get; set; } = string.Empty;
+    [Column("role_id")]
+    public int RoleId { get; set; }
+    public Roles? Roles { get; set; }
 }

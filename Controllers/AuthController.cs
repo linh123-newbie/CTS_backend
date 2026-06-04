@@ -70,7 +70,6 @@ public class AuthController : ControllerBase
                 {
                     GoogleId = payload.Subject,
                     Name = payload.Name ?? "",
-                    ImageUrl = payload.Picture
                 };
 
                 _context.Users.Add(user);
@@ -79,7 +78,6 @@ public class AuthController : ControllerBase
             {
                 user.GoogleId = payload.Subject;
                 user.Name = payload.Name ?? user.Name;
-                user.ImageUrl = payload.Picture;
             }
 
             await _context.SaveChangesAsync();
