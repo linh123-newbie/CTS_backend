@@ -39,7 +39,6 @@ public class SelfAssessmentController : ControllerBase
 
             const int symptomTypeId = 1;
             const int functionTypeId = 2;
-            String level = "";
 
             var selectedAnswers = await _context.BctqAnswers
                 .Include(a => a.BctqQuestion)
@@ -81,12 +80,31 @@ public class SelfAssessmentController : ControllerBase
 
             decimal totalScore = symptomScore + functionScore;
 
+            string level;
+
+            if (totalScore <= 34)
+            {
+                level = "Bình thường";
+            }
+            else if (totalScore <= 54)
+            {
+                level = "Nhẹ";
+            }
+            else if (totalScore <= 74)
+            {
+                level = "Trung bình";
+            }
+            else
+            {
+                level = "Nặng";
+            }
+
             var selfAssessment = new SelfAssessment
             {
                 UserId = userId,
                 Time = DateTime.UtcNow,
                 Score = totalScore,
-                Level = null,
+                Level = level,
             };
 
             _context.SelfAssessment.Add(selfAssessment);
@@ -123,22 +141,7 @@ public class SelfAssessmentController : ControllerBase
 
             await transaction.CommitAsync();
 
-            if (totalScore <= 34)
-            {
-                level = "Bình thường";
-            }
-            else if (totalScore > 34 && totalScore <= 54)
-            {
-                level = "Nhẹ";
-            }
-            else if (totalScore >= 55 && totalScore <= 74)
-            {
-                level = "Trung bình";
-            }
-            else
-            {
-                level = "Nặng";
-            }
+
 
             return Ok(new
             {
