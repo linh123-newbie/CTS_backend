@@ -11,13 +11,23 @@ public class AppDbContext : DbContext
 
     public DbSet<Roles> Roles { get; set; }
     public DbSet<Users> Users { get; set; }
+    public DbSet<Patients> Patients { get; set; }
+    public DbSet<SelfAssessment> SelfAssessment { get; set; }
     public DbSet<QuestionType> QuestionTypes { get; set; }
     public DbSet<BctqQuestion> BctqQuestions { get; set; }
     public DbSet<BctqAnswer> BctqAnswers { get; set; }
     public DbSet<PhysicalTest> PhysicalTests { get; set; }
+    public DbSet<AssessmentAnswer> AssessmentAnswer { get; set; }
+    public DbSet<AssessmentPhysicalDetail> AssessmentPhysicalDetail { get; set; }
+    public DbSet<AssessmentSymptomArea> AssessmentSymptomArea { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Roles>().ToTable("roles");
+        modelBuilder.Entity<Patients>().ToTable("patients");
+        modelBuilder.Entity<SelfAssessment>().ToTable("self_assessment");
+        modelBuilder.Entity<AssessmentAnswer>().ToTable("assessment_answer");
+        modelBuilder.Entity<AssessmentPhysicalDetail>().ToTable("assessment_physical_detail");
+        modelBuilder.Entity<AssessmentSymptomArea>().ToTable("assessment_symptom_area");
         modelBuilder.Entity<Users>().ToTable("users");
         modelBuilder.Entity<QuestionType>().ToTable("question_type");
         modelBuilder.Entity<BctqQuestion>().ToTable("bctq_question");
@@ -27,5 +37,10 @@ public class AppDbContext : DbContext
          .HasOne(a => a.BctqQuestion)
          .WithMany(q => q.Answers)
          .HasForeignKey(a => a.BctqQuestionId);
+
+        modelBuilder.Entity<SelfAssessment>()
+    .HasOne(sa => sa.Users)
+    .WithMany(u => u.SelfAssessments)
+    .HasForeignKey(sa => sa.UserId);
     }
 }

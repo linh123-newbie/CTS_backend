@@ -17,4 +17,6 @@ public class Users
     [Column("role_id")]
     public int RoleId { get; set; }
     public Roles? Roles { get; set; }
+
+    public ICollection<SelfAssessment>? SelfAssessments { get; set; }
 }
