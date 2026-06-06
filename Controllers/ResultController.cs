@@ -157,4 +157,123 @@ public class ResultController : ControllerBase
         return Ok(latest);
     }
 
+    [HttpGet("assessmentsTime")]
+    public async Task<ActionResult> GetAllAssessmentsTime([FromQuery] int userId)
+    {
+        var latest = await _context.SelfAssessment
+        .Where(u => u.UserId == userId)
+        .OrderBy(t => t.Time)
+        .Select(t => new
+        {
+            id = t.Id,
+            time = t.Time.ToString("dd/MM/yyyy HH:mm"),
+            score = t.Score,
+            level = t.Level
+        })
+        .ToListAsync();
+
+        if (latest == null)
+        {
+            return Ok(null);
+        }
+
+        return Ok(latest);
+    }
+
+    [HttpGet("detailAssessment")]
+    public async Task<ActionResult> GetDetailAssessment([FromQuery] int userId, [FromQuery] int SelfAssessmentId)
+    {
+        var assessment = await _context.SelfAssessment
+            .Where(u => u.UserId == userId && u.Id == SelfAssessmentId)
+            .FirstOrDefaultAsync();
+
+        if (assessment == null)
+        {
+            return Ok(null);
+        }
+
+        var answers = await _context.AssessmentAnswer
+            .Where(aa => aa.SelfAssessmentId == assessment.Id)
+            .Join(
+                _context.BctqAnswers,
+                aa => aa.BctqAnswerId,
+                ba => ba.Id,
+                (aa, ba) => new { aa, ba }
+            )
+            .Join(
+                _context.BctqQuestions,
+                x => x.ba.BctqQuestionId,
+                bq => bq.Id,
+                (x, bq) => new
+                {
+                    questionTypeId = bq.QuestionTypeId,
+                    question = bq.Content,
+                    rate = x.ba.Rate,
+                    answerContent = x.ba.AnswerContent
+                }
+            )
+            .ToListAsync();
+
+        var symptomAnswers = answers
+            .Where(x => x.questionTypeId == 1)
+            .Select(x => new
+            {
+                question = x.question,
+                rate = x.rate,
+                answerContent = x.answerContent
+            })
+            .ToList();
+
+        var functionAnswers = answers
+            .Where(x => x.questionTypeId == 2)
+            .Select(x => new
+            {
+                question = x.question,
+                rate = x.rate,
+                answerContent = x.answerContent
+            })
+            .ToList();
+
+        var symptomScore = symptomAnswers.Sum(x => x.rate);
+        var functionScore = functionAnswers.Sum(x => x.rate);
+
+        var physicalResults = await _context.AssessmentPhysicalDetail
+            .Where(pd => pd.SelfAssessmentId == assessment.Id)
+            .Join(
+                _context.PhysicalTests,
+                pd => pd.PhysicalTestId,
+                pt => pt.Id,
+                (pd, pt) => new
+                {
+                    name = pt.Name
+                        .Replace("Nghiệm pháp ", "")
+                        .Replace("Nghiệm pháp", "")
+                        .Trim(),
+                    isPositive = pd.IsPositive
+                }
+            )
+            .ToListAsync();
+
+        var data = new
+        {     
+            symptom = new
+            {
+                score = symptomScore,
+                totalScore = symptomAnswers.Count * 5,
+                answers = symptomAnswers
+            },
+
+            function = new
+            {
+                score = functionScore,
+                totalScore = functionAnswers.Count * 5,
+                answers = functionAnswers
+            },
+
+            physicalResults = physicalResults
+        };
+
+        return Ok(data);
+    }
+
 }
