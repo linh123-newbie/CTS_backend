@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<BctqQuestion> BctqQuestions { get; set; }
     public DbSet<BctqAnswer> BctqAnswers { get; set; }
     public DbSet<PhysicalTest> PhysicalTests { get; set; }
+    public DbSet<Exercises> Exercises { get; set; }
     public DbSet<AssessmentAnswer> AssessmentAnswer { get; set; }
     public DbSet<AssessmentPhysicalDetail> AssessmentPhysicalDetail { get; set; }
     public DbSet<AssessmentSymptomArea> AssessmentSymptomArea { get; set; }
@@ -32,6 +33,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<QuestionType>().ToTable("question_type");
         modelBuilder.Entity<BctqQuestion>().ToTable("bctq_question");
         modelBuilder.Entity<BctqAnswer>().ToTable("bctq_answer");
+        modelBuilder.Entity<Exercises>().ToTable("exercise");
         modelBuilder.Entity<PhysicalTest>().ToTable("physical_test");
         modelBuilder.Entity<BctqAnswer>()
          .HasOne(a => a.BctqQuestion)
