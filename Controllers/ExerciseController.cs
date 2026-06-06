@@ -25,6 +25,17 @@ public class ExerciseController : ControllerBase
 
         return Ok(data);
     }
+    
+    [HttpGet("getRelatedExercises")]
+    public async Task<ActionResult> GetRelatedExercises(String level)
+    {
+        var data = await _context.Exercises
+        .Where(v=>v.Level == level)
+            .AsNoTracking()
+            .ToListAsync();
+
+        return Ok(data);
+    }
 
 
 
