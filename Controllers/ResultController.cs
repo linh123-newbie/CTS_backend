@@ -125,6 +125,7 @@ public class ResultController : ControllerBase
 
         var data = new
         {
+            id = latest.Id,
             time = latest.time,
             level = latest.level,
             symptomScore = scores?.symptomScore ?? 0,
