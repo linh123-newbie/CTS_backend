@@ -30,7 +30,8 @@ public class ClinicalRecordControler : ControllerBase
                 p.Id,
                 p.Name,
                 p.DateBirth,
-                p.Gender
+                p.Gender,
+                c.Time
             }
         )
         .Distinct()
