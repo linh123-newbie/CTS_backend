@@ -13,25 +13,18 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _configuration;
-    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(AppDbContext context, IConfiguration configuration, ILogger<AuthController> logger)
+    public AuthController(AppDbContext context, IConfiguration configuration)
     {
         _context = context;
         _configuration = configuration;
-        _logger = logger;
-
     }
 
     [HttpPost("google-login")]
     public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
     {
-        _logger.LogInformation("Google login API called");
-
         if (string.IsNullOrWhiteSpace(request.IdToken))
         {
-            _logger.LogWarning("IdToken is empty");
-
             return BadRequest(new
             {
                 success = false,
@@ -43,12 +36,8 @@ public class AuthController : ControllerBase
         {
             var googleClientId = _configuration["Authentication:Google:ClientId"];
 
-            _logger.LogInformation("Backend Google ClientId: {ClientId}", googleClientId);
-
             if (string.IsNullOrWhiteSpace(googleClientId))
             {
-                _logger.LogError("Google ClientId is not configured");
-
                 return StatusCode(500, new
                 {
                     success = false,
@@ -63,12 +52,8 @@ public class AuthController : ControllerBase
 
             var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
 
-            _logger.LogInformation("Google token validated. Email: {Email}, Name: {Name}", payload.Email, payload.Name);
-
             if (!payload.EmailVerified)
             {
-                _logger.LogWarning("Google email is not verified: {Email}", payload.Email);
-
                 return Unauthorized(new
                 {
                     success = false,
@@ -99,18 +84,88 @@ public class AuthController : ControllerBase
 
             return Ok(user);
         }
-        catch (Exception ex)
+        catch
         {
-            var googleClientId = _configuration["Authentication:Google:ClientId"];
-
-            _logger.LogError(ex, "Google login failed. Backend ClientId: {ClientId}", googleClientId);
-
             return Unauthorized(new
             {
                 success = false,
-                message = "Invalid Google token",
-                detail = ex.Message,
-                backendClientId = googleClientId
+                message = "Invalid Google token"
+            });
+        }
+    }
+
+    [HttpPost("google-login_doctor")]
+    public async Task<IActionResult> GoogleLoginDoctor([FromBody] GoogleLoginRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.IdToken))
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "IdToken is required"
+            });
+        }
+
+        try
+        {
+            var googleClientId = _configuration["Authentication:Google:ClientId"];
+
+            if (string.IsNullOrWhiteSpace(googleClientId))
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Google ClientId is not configured"
+                });
+            }
+
+            var settings = new GoogleJsonWebSignature.ValidationSettings
+            {
+                Audience = new[] { googleClientId }
+            };
+
+            var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
+
+            if (!payload.EmailVerified)
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = "Google email is not verified"
+                });
+            }
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(x => x.GoogleId == payload.Subject);
+
+            if (user == null)
+            {
+                user = new Users
+                {
+                    GoogleId = payload.Subject,
+                    Name = payload.Name ?? "",
+                    RoleId = 2
+                };
+
+                _context.Users.Add(user);
+            }
+            else
+            {
+                user.GoogleId = payload.Subject;
+                user.Name = payload.Name ?? user.Name;
+                user.RoleId = 2;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(user);
+        }
+        catch
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message = "Invalid Google token"
             });
         }
     }
