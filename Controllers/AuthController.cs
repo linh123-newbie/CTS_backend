@@ -13,18 +13,25 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(AppDbContext context, IConfiguration configuration)
+    public AuthController(AppDbContext context, IConfiguration configuration, ILogger<AuthController> logger)
     {
         _context = context;
         _configuration = configuration;
+        _logger = logger;
+
     }
 
     [HttpPost("google-login")]
     public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
     {
+        _logger.LogInformation("Google login API called");
+
         if (string.IsNullOrWhiteSpace(request.IdToken))
         {
+            _logger.LogWarning("IdToken is empty");
+
             return BadRequest(new
             {
                 success = false,
@@ -36,8 +43,12 @@ public class AuthController : ControllerBase
         {
             var googleClientId = _configuration["Authentication:Google:ClientId"];
 
+            _logger.LogInformation("Backend Google ClientId: {ClientId}", googleClientId);
+
             if (string.IsNullOrWhiteSpace(googleClientId))
             {
+                _logger.LogError("Google ClientId is not configured");
+
                 return StatusCode(500, new
                 {
                     success = false,
@@ -52,8 +63,12 @@ public class AuthController : ControllerBase
 
             var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
 
+            _logger.LogInformation("Google token validated. Email: {Email}, Name: {Name}", payload.Email, payload.Name);
+
             if (!payload.EmailVerified)
             {
+                _logger.LogWarning("Google email is not verified: {Email}", payload.Email);
+
                 return Unauthorized(new
                 {
                     success = false,
@@ -84,12 +99,18 @@ public class AuthController : ControllerBase
 
             return Ok(user);
         }
-        catch
+        catch (Exception ex)
         {
+            var googleClientId = _configuration["Authentication:Google:ClientId"];
+
+            _logger.LogError(ex, "Google login failed. Backend ClientId: {ClientId}", googleClientId);
+
             return Unauthorized(new
             {
                 success = false,
-                message = "Invalid Google token"
+                message = "Invalid Google token",
+                detail = ex.Message,
+                backendClientId = googleClientId
             });
         }
     }
