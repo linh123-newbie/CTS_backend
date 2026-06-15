@@ -16,7 +16,8 @@ public class Users
     public String Name { get; set; } = string.Empty;
     [Column("role_id")]
     public int RoleId { get; set; }
-    public Roles? Roles { get; set; }
+    [ForeignKey(nameof(RoleId))]
+    public Roles? Role { get; set; }
 
     public ICollection<SelfAssessment>? SelfAssessments { get; set; }
 }
