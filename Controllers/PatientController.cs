@@ -27,7 +27,9 @@ public class PatientController : ControllerBase
         {
             id = p.Id,
             name = p.Name,
-            age = CalculateAge(p.DateBirth),
+            weight = p.Weight,
+            phone = p.Phone,
+            age = CalculateAge(p.DateBirth??""),
             gender = p.Gender == 1 ? "Nữ" : "Nam"
         });
 
