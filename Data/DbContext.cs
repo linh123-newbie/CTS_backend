@@ -18,12 +18,16 @@ public class AppDbContext : DbContext
     public DbSet<BctqAnswer> BctqAnswers { get; set; }
     public DbSet<PhysicalTest> PhysicalTests { get; set; }
     public DbSet<Exercises> Exercises { get; set; }
+    public DbSet<ClinicalRecord> ClinicalRecord { get; set; }
+    public DbSet<Staffs> Staffs { get; set; }
     public DbSet<AssessmentAnswer> AssessmentAnswer { get; set; }
     public DbSet<AssessmentPhysicalDetail> AssessmentPhysicalDetail { get; set; }
     public DbSet<AssessmentSymptomArea> AssessmentSymptomArea { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Roles>().ToTable("roles");
+        modelBuilder.Entity<ClinicalRecord>().ToTable("clinical_record");
+        modelBuilder.Entity<Staffs>().ToTable("staffs");
         modelBuilder.Entity<Patients>().ToTable("patients");
         modelBuilder.Entity<SelfAssessment>().ToTable("self_assessment");
         modelBuilder.Entity<AssessmentAnswer>().ToTable("assessment_answer");

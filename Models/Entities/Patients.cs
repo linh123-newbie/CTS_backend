@@ -26,7 +26,7 @@ public class Patients
     [Column("occupation")]
     public String Occupation { get; set; } = string.Empty;
     [Column("hand")]
-    public int Hand { get; set; }
+    public int? Hand { get; set; }
 
     
     
