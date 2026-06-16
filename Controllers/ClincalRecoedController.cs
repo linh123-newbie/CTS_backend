@@ -16,8 +16,6 @@ public class ClinicalRecordController : ControllerBase
         _context = context;
     }
 
-
-
     [HttpPost("addClinicalRecord")]
     public async Task<ActionResult> AddClinicalRecord(
     [FromQuery] int doctorUserId,
@@ -60,7 +58,8 @@ public class ClinicalRecordController : ControllerBase
                     {
                         ClinicalRecordId = clinicalRecord.Id,
                         Hand = hand,
-                        Label = null
+                        Label = null,
+                        Status = "Chưa xử lý"
                     })
                     .ToList();
 
@@ -80,7 +79,8 @@ public class ClinicalRecordController : ControllerBase
                         MaskUrl = null,
                         HistogramUrl = null,
                         Csa = 0,
-                        MeanIntensity = 0
+                        MeanIntensity = 0,
+                        Status = "Chưa xử lý",
                     })
                     .ToList();
 

@@ -27,6 +27,8 @@ public class UltrasoundResult
     public String? HistogramUrl { get; set; }
     [Column("mean_intensity")]
     public double MeanIntensity { get; set; }
+    [Column("status")]
+    public String? Status { get; set; }
     [ForeignKey(nameof(ClinicalRecordId))]
     public ClinicalRecord? ClinicalRecord { get; set; }
     
