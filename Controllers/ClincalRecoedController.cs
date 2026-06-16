@@ -77,9 +77,7 @@ public class ClinicalRecordController : ControllerBase
                         Label = null,
                         ImageUrl = null,
                         MaskUrl = null,
-                        HistogramUrl = null,
                         Csa = 0,
-                        MeanIntensity = 0,
                         Status = "Chưa xử lý",
                     })
                     .ToList();

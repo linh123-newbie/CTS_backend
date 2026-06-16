@@ -23,10 +23,6 @@ public class UltrasoundResult
     public double Csa { get; set; }
     [Column("clinical_record_id")]
     public int ClinicalRecordId { get; set; }
-    [Column("histogram_url")]
-    public String? HistogramUrl { get; set; }
-    [Column("mean_intensity")]
-    public double MeanIntensity { get; set; }
     [Column("status")]
     public String? Status { get; set; }
     [ForeignKey(nameof(ClinicalRecordId))]
