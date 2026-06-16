@@ -15,8 +15,8 @@ public class UltrasoundController : ControllerBase
         _context = context;
     }
 
-    [HttpGet("getNcsResults")]
-    public async Task<ActionResult> GetNcsResults(
+    [HttpGet("getUltrasoundResults")]
+    public async Task<ActionResult> GetUltrasoundResults(
         [FromQuery] int doctorUserId)
     {
         var query =
