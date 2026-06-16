@@ -12,7 +12,7 @@ public class UltrasoundController : ControllerBase
     private readonly AppDbContext _context;
     private readonly IHttpClientFactory _httpClientFactory;
 
-    public UltrasoundController(AppDbContext context, IHttpClientFactory httpClientFactory)
+    public UltrasoundController(AppDbContext context, IHttpClientFactory httpClientFactory, HttpClient httpClient)
     {
         _context = context;
         _httpClientFactory = httpClientFactory;
@@ -121,6 +121,106 @@ public class UltrasoundController : ControllerBase
             markedUrl = segmentResult.MarkedUrl,
             csaMm2 = segmentResult.CsaMm2,
             status = ultrasoundResult.Status
+        });
+    }
+
+    [HttpPost("result")]
+    public async Task<ActionResult> Result(
+        [FromQuery] int ultrasoundResultId,
+        [FromQuery] string originalUrl,
+        [FromQuery] string predMaskUrl,
+        [FromQuery] double csaMm2
+    )
+    {
+        var ultrasoundResult = await _context.UltrasoundResults
+            .FirstOrDefaultAsync(x => x.Id == ultrasoundResultId);
+
+        if (ultrasoundResult == null)
+        {
+            return NotFound(new
+            {
+                message = "Không tìm thấy ultrasound result"
+            });
+        }
+
+        var client = _httpClientFactory.CreateClient("UltrasoundAi");
+
+        var url =
+            "result" +
+            $"?originalUrl={Uri.EscapeDataString(originalUrl)}" +
+            $"&predMaskUrl={Uri.EscapeDataString(predMaskUrl)}" +
+            $"&csaMm2={Uri.EscapeDataString(csaMm2.ToString(System.Globalization.CultureInfo.InvariantCulture))}";
+
+        HttpResponseMessage pythonResponse;
+
+        try
+        {
+            pythonResponse = await client.PostAsync(url, null);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                message = "Không gọi được API ultrasound Python",
+                error = ex.Message
+            });
+        }
+
+        var json = await pythonResponse.Content.ReadAsStringAsync();
+
+        if (!pythonResponse.IsSuccessStatusCode)
+        {
+            return StatusCode((int)pythonResponse.StatusCode, new
+            {
+                message = "Python API trả lỗi",
+                detail = json
+            });
+        }
+
+        var result = JsonSerializer.Deserialize<PythonUltrasoundResultResponse>(
+            json,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }
+        );
+
+        if (result == null)
+        {
+            return StatusCode(500, new
+            {
+                message = "Không parse được response từ Python API",
+                raw = json
+            });
+        }
+
+        var finalLabel = result.FusionPrediction?.Label;
+        var finalConfidence = result.FusionPrediction?.Confidence ?? 0;
+
+        ultrasoundResult.ImageUrl = originalUrl;
+        ultrasoundResult.MaskUrl = predMaskUrl;
+        ultrasoundResult.Csa = csaMm2;
+        ultrasoundResult.Label = finalLabel;
+        ultrasoundResult.Status = "DONE";
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            success = true,
+            ultrasoundResultId = ultrasoundResult.Id,
+
+            imageUrl = ultrasoundResult.ImageUrl,
+            maskUrl = ultrasoundResult.MaskUrl,
+            csa = ultrasoundResult.Csa,
+
+            label = finalLabel,
+            confidence = finalConfidence,
+            status = ultrasoundResult.Status,
+
+            imagePrediction = result.ImagePrediction,
+            featurePrediction = result.FeaturePrediction,
+            fusionPrediction = result.FusionPrediction
         });
     }
 }

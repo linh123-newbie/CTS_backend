@@ -32,3 +32,30 @@ public class ImagePrediction
     [JsonPropertyName("confidence")]
     public double? Confidence { get; set; }
 }
+
+public class PythonUltrasoundResultResponse
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("image_prediction")]
+    public PredictionDto? ImagePrediction { get; set; }
+
+    [JsonPropertyName("feature_prediction")]
+    public PredictionDto? FeaturePrediction { get; set; }
+
+    [JsonPropertyName("fusion_prediction")]
+    public PredictionDto? FusionPrediction { get; set; }
+}
+
+public class PredictionDto
+{
+    [JsonPropertyName("label")]
+    public string? Label { get; set; }
+
+    [JsonPropertyName("confidence")]
+    public double Confidence { get; set; }
+
+    [JsonPropertyName("probabilities")]
+    public Dictionary<string, double>? Probabilities { get; set; }
+}
