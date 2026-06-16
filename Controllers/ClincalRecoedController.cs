@@ -20,31 +20,31 @@ public class ClinicalRecordController : ControllerBase
 
     [HttpPost("addClinicalRecord")]
     public async Task<ActionResult> AddClinicalRecord(
-    [FromQuery] int doctorId,
+    [FromQuery] int doctorUserId,
     [FromQuery] int patientId,
     [FromQuery] List<int> ncsHands,
     [FromQuery] List<int> ultrasoundHands)
     {
-        // kiểm tra patient có tồn tại không
         var patientExists = await _context.Patients.AnyAsync(p => p.Id == patientId);
         if (!patientExists)
             return NotFound("Không tìm thấy bệnh nhân");
 
-        // kiểm tra doctor có tồn tại không
-        var doctorExists = await _context.Staffs.AnyAsync(s => s.Id == doctorId);
-        if (!doctorExists)
-            return NotFound("Không tìm thấy bác sĩ");
+        // doctorUserId là users.id
+        // cần tìm staff tương ứng
+        var doctor = await _context.Staffs
+            .FirstOrDefaultAsync(s => s.UserId == doctorUserId);
+
+        if (doctor == null)
+            return NotFound("Không tìm thấy bác sĩ từ userId này");
 
         using var transaction = await _context.Database.BeginTransactionAsync();
 
-
         try
         {
-            // 1. Tạo ClinicalRecord
             var clinicalRecord = new ClinicalRecord
             {
                 PatientId = patientId,
-                DoctorId = doctorId,
+                DoctorId = doctor.Id, // Lưu staffs.id, không lưu users.id
                 Time = DateTime.UtcNow,
                 Result = ""
             };
@@ -52,33 +52,37 @@ public class ClinicalRecordController : ControllerBase
             _context.ClinicalRecords.Add(clinicalRecord);
             await _context.SaveChangesAsync();
 
-            // 2. Tạo NCS result, mỗi tay 1 dòng
             if (ncsHands != null && ncsHands.Count > 0)
             {
-                var ncsResults = ncsHands.Select(hand => new NcsResult
-                {
-                    ClinicalRecordId = clinicalRecord.Id,
-                    Hand = hand,
-                    Label = null
-                }).ToList();
+                var ncsResults = ncsHands
+                    .Distinct()
+                    .Select(hand => new NcsResult
+                    {
+                        ClinicalRecordId = clinicalRecord.Id,
+                        Hand = hand,
+                        Label = null
+                    })
+                    .ToList();
 
                 _context.NcsResults.AddRange(ncsResults);
             }
 
-            // 3. Tạo Ultrasound result, mỗi tay 1 dòng
             if (ultrasoundHands != null && ultrasoundHands.Count > 0)
             {
-                var ultrasoundResults = ultrasoundHands.Select(hand => new UltrasoundResult
-                {
-                    ClinicalRecordId = clinicalRecord.Id,
-                    Hand = hand,
-                    Label = null,
-                    ImageUrl = null,
-                    MaskUrl = null,
-                    HistogramUrl = null,
-                    Csa = 0,
-                    MeanIntensity = 0
-                }).ToList();
+                var ultrasoundResults = ultrasoundHands
+                    .Distinct()
+                    .Select(hand => new UltrasoundResult
+                    {
+                        ClinicalRecordId = clinicalRecord.Id,
+                        Hand = hand,
+                        Label = null,
+                        ImageUrl = null,
+                        MaskUrl = null,
+                        HistogramUrl = null,
+                        Csa = 0,
+                        MeanIntensity = 0
+                    })
+                    .ToList();
 
                 _context.UltrasoundResults.AddRange(ultrasoundResults);
             }
@@ -86,28 +90,27 @@ public class ClinicalRecordController : ControllerBase
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            var data = new
+            return Ok(new
             {
                 clinicalRecordId = clinicalRecord.Id,
                 patientId = clinicalRecord.PatientId,
-                doctorId = clinicalRecord.DoctorId,
+                doctorId = clinicalRecord.DoctorId,       // staffs.id
+                doctorUserId = doctorUserId,              // users.id
                 time = clinicalRecord.Time,
-                ncsHands = ncsHands,
-                ultrasoundHands = ultrasoundHands
-            };
-
-            return Ok(data);
+                ncsHands,
+                ultrasoundHands
+            });
         }
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
+
             return BadRequest(new
             {
                 message = "Tạo ca khám thất bại",
-                error = ex.Message
+                error = ex.InnerException?.Message ?? ex.Message
             });
         }
-
     }
 
 
