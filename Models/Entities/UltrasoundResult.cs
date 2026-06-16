@@ -20,7 +20,7 @@ public class UltrasoundResult
     [Column("label")]
     public String? Label { get; set; }
     [Column("csa")]
-    public double Csa { get; set; }
+    public double? Csa { get; set; }
     [Column("clinical_record_id")]
     public int ClinicalRecordId { get; set; }
     [Column("status")]

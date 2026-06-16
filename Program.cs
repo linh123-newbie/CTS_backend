@@ -12,6 +12,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
+builder.Services.AddHttpClient("UltrasoundAi", client =>
+{
+    client.BaseAddress = new Uri("https://ultrasound.dangkhoa3ln.com/");
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
