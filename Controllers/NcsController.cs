@@ -1,6 +1,10 @@
 using CTS_backend.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using CTS_backend.Models.DTOs;
+using System.Net.Http.Headers;
+using System.Text.Json;
+
 
 namespace CTS_backend.Controllers;
 
@@ -9,10 +13,12 @@ namespace CTS_backend.Controllers;
 public class NcsController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly HttpClient _waveformClient;
 
-    public NcsController(AppDbContext context)
+    public NcsController(AppDbContext context, IHttpClientFactory httpClientFactory)
     {
         _context = context;
+        _waveformClient = httpClientFactory.CreateClient("WaveformAi");
     }
 
     [HttpGet("getNcsResults")]
@@ -47,5 +53,82 @@ public class NcsController : ControllerBase
             .ToListAsync();
 
         return Ok(data);
+    }
+
+    [HttpPost("features")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> GetNcsFeatures(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest("Vui lòng chọn file txt.");
+        }
+
+        var extension = Path.GetExtension(file.FileName).ToLower();
+
+        if (extension != ".txt")
+        {
+            return BadRequest("Chỉ cho phép upload file .txt.");
+        }
+
+        using var formData = new MultipartFormDataContent();
+
+        await using var fileStream = file.OpenReadStream();
+        using var fileContent = new StreamContent(fileStream);
+
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+
+        formData.Add(fileContent, "file", file.FileName);
+
+        var response = await _waveformClient.PostAsync("features", formData);
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return StatusCode((int)response.StatusCode, responseBody);
+        }
+
+        var result = JsonSerializer.Deserialize<NcsFeatureResponse>(
+            responseBody,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }
+        );
+
+        return Ok(result);
+    }
+
+    [HttpPost("predict")]
+    [Consumes("application/json")]
+    public async Task<IActionResult> PredictNcs([FromBody] NcsFeatures features)
+    {
+        if (features == null)
+        {
+            return BadRequest("Vui lòng truyền features.");
+        }
+
+        var predictResponse = await _waveformClient.PostAsJsonAsync(
+            "predict",
+            features
+        );
+
+        var predictBody = await predictResponse.Content.ReadAsStringAsync();
+
+        if (!predictResponse.IsSuccessStatusCode)
+        {
+            return StatusCode((int)predictResponse.StatusCode, predictBody);
+        }
+
+        var predictResult = JsonSerializer.Deserialize<NcsPredictResponse>(
+            predictBody,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }
+        );
+
+        return Ok(predictResult);
     }
 }

@@ -16,6 +16,10 @@ builder.Services.AddHttpClient("UltrasoundAi", client =>
 {
     client.BaseAddress = new Uri("https://ultrasound.dangkhoa3ln.com/");
 });
+builder.Services.AddHttpClient("WaveformAi", client =>
+{
+    client.BaseAddress = new Uri("https://waveform.dangkhoa3ln.com/");
+});
 
 builder.Services.AddCors(options =>
 {
