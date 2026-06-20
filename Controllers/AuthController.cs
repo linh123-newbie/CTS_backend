@@ -219,7 +219,9 @@ public class AuthController : ControllerBase
             return Unauthorized(new
             {
                 success = false,
-                message = "Invalid Google token"
+                message = "Invalid Google token",
+                detail = ex.Message,
+                type = ex.GetType().Name
             });
         }
     }
