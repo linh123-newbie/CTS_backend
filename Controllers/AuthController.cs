@@ -13,11 +13,14 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(AppDbContext context, IConfiguration configuration)
+
+    public AuthController(AppDbContext context, IConfiguration configuration, ILogger<AuthController> logger)
     {
         _context = context;
         _configuration = configuration;
+        _logger = logger;
     }
 
     [HttpPost("google-login")]
@@ -97,8 +100,12 @@ public class AuthController : ControllerBase
     [HttpPost("google-login_doctor")]
     public async Task<IActionResult> GoogleLoginDoctor([FromBody] GoogleLoginRequest request)
     {
+        _logger.LogInformation("GoogleLoginDoctor called");
+
         if (string.IsNullOrWhiteSpace(request.IdToken))
         {
+            _logger.LogWarning("GoogleLoginDoctor failed: IdToken is empty");
+
             return BadRequest(new
             {
                 success = false,
@@ -109,6 +116,8 @@ public class AuthController : ControllerBase
         try
         {
             var googleClientId = _configuration["Authentication:Google:ClientId"];
+
+            _logger.LogInformation("Google ClientId configured: {HasClientId}", !string.IsNullOrWhiteSpace(googleClientId));
 
             if (string.IsNullOrWhiteSpace(googleClientId))
             {
@@ -126,8 +135,17 @@ public class AuthController : ControllerBase
 
             var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
 
+            _logger.LogInformation(
+                "Google token valid. Email={Email}, Subject={Subject}, Verified={Verified}",
+                payload.Email,
+                payload.Subject,
+                payload.EmailVerified
+            );
+
             if (!payload.EmailVerified)
             {
+                _logger.LogWarning("Google email not verified: {Email}", payload.Email);
+
                 return Unauthorized(new
                 {
                     success = false,
@@ -140,6 +158,8 @@ public class AuthController : ControllerBase
 
             if (user == null)
             {
+                _logger.LogInformation("Creating new doctor user: {Email}", payload.Email);
+
                 user = new Users
                 {
                     GoogleId = payload.Subject,
@@ -151,6 +171,8 @@ public class AuthController : ControllerBase
             }
             else
             {
+                _logger.LogInformation("Updating existing doctor user. UserId={UserId}", user.Id);
+
                 user.GoogleId = payload.Subject;
                 user.Name = payload.Name ?? user.Name;
                 user.RoleId = 2;
@@ -158,10 +180,14 @@ public class AuthController : ControllerBase
 
             await _context.SaveChangesAsync();
 
+            _logger.LogInformation("GoogleLoginDoctor success. UserId={UserId}", user.Id);
+
             return Ok(user);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "GoogleLoginDoctor failed");
+
             return Unauthorized(new
             {
                 success = false,
