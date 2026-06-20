@@ -38,6 +38,7 @@ public class AuthController : ControllerBase
         try
         {
             var googleClientId = _configuration["Authentication:Google:ClientId"];
+            _logger.LogInformation("Backend Google ClientId={ClientId}", googleClientId);
 
             if (string.IsNullOrWhiteSpace(googleClientId))
             {
