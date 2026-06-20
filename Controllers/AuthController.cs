@@ -212,6 +212,18 @@ public class AuthController : ControllerBase
 
             return Ok(user);
         }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Database save failed");
+
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Database save failed",
+                detail = ex.InnerException?.Message ?? ex.Message,
+                type = ex.GetType().Name
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "GoogleLoginDoctor failed");
@@ -224,5 +236,6 @@ public class AuthController : ControllerBase
                 type = ex.GetType().Name
             });
         }
+
     }
 }
