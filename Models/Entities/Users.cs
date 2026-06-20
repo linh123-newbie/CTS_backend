@@ -12,6 +12,8 @@ public class Users
     public int Id { get; set; }
     [Column("google_id")]
     public String GoogleId { get; set; } = string.Empty;
+    [Column("email")]
+    public String Email { get; set; } = string.Empty;
     [Column("name")]
     public String Name { get; set; } = string.Empty;
     [Column("role_id")]

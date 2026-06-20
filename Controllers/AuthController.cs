@@ -73,9 +73,12 @@ public class AuthController : ControllerBase
                 {
                     GoogleId = payload.Subject,
                     Name = payload.Name ?? "",
+                    Email = payload.Email,
+                    RoleId = 2
                 };
 
                 _context.Users.Add(user);
+                await _context.SaveChangesAsync();
             }
             else
             {
@@ -84,6 +87,26 @@ public class AuthController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
+
+            var staff = await _context.Staffs
+    .FirstOrDefaultAsync(s => s.UserId == user.Id);
+
+            if (staff == null)
+            {
+                _logger.LogInformation("Creating staff for doctor user. UserId={UserId}", user.Id);
+
+                staff = new Staffs
+                {
+                    UserId = user.Id,
+                    Name = user.Name
+                };
+
+                _context.Staffs.Add(staff);
+                await _context.SaveChangesAsync();
+            }
+
+            _logger.LogInformation("GoogleLoginDoctor success. UserId={UserId}", user.Id);
+
 
             return Ok(user);
         }
@@ -102,10 +125,8 @@ public class AuthController : ControllerBase
     {
         _logger.LogInformation("GoogleLoginDoctor called");
 
-        if (string.IsNullOrWhiteSpace(request.IdToken))
+        if (request == null || string.IsNullOrWhiteSpace(request.IdToken))
         {
-            _logger.LogWarning("GoogleLoginDoctor failed: IdToken is empty");
-
             return BadRequest(new
             {
                 success = false,
@@ -116,8 +137,6 @@ public class AuthController : ControllerBase
         try
         {
             var googleClientId = _configuration["Authentication:Google:ClientId"];
-
-            _logger.LogInformation("Google ClientId configured: {HasClientId}", !string.IsNullOrWhiteSpace(googleClientId));
 
             if (string.IsNullOrWhiteSpace(googleClientId))
             {
@@ -135,17 +154,8 @@ public class AuthController : ControllerBase
 
             var payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
 
-            _logger.LogInformation(
-                "Google token valid. Email={Email}, Subject={Subject}, Verified={Verified}",
-                payload.Email,
-                payload.Subject,
-                payload.EmailVerified
-            );
-
             if (!payload.EmailVerified)
             {
-                _logger.LogWarning("Google email not verified: {Email}", payload.Email);
-
                 return Unauthorized(new
                 {
                     success = false,
@@ -154,33 +164,48 @@ public class AuthController : ControllerBase
             }
 
             var user = await _context.Users
-                .FirstOrDefaultAsync(x => x.GoogleId == payload.Subject);
+    .FirstOrDefaultAsync(x =>
+        x.GoogleId == payload.Subject ||
+        x.Email == payload.Email
+    );
 
             if (user == null)
             {
-                _logger.LogInformation("Creating new doctor user: {Email}", payload.Email);
-
                 user = new Users
                 {
                     GoogleId = payload.Subject,
                     Name = payload.Name ?? "",
+                    Email = payload.Email,
                     RoleId = 2
                 };
 
                 _context.Users.Add(user);
+                await _context.SaveChangesAsync();
             }
             else
             {
-                _logger.LogInformation("Updating existing doctor user. UserId={UserId}", user.Id);
 
                 user.GoogleId = payload.Subject;
                 user.Name = payload.Name ?? user.Name;
+                user.Email = payload.Email ?? user.Email;
                 user.RoleId = 2;
             }
 
             await _context.SaveChangesAsync();
+            var staff = await _context.Staffs
+            .FirstOrDefaultAsync(s => s.UserId == user.Id);
 
-            _logger.LogInformation("GoogleLoginDoctor success. UserId={UserId}", user.Id);
+            if (staff == null)
+            {
+                staff = new Staffs
+                {
+                    UserId = user.Id,
+                    Name = user.Name
+                };
+
+                _context.Staffs.Add(staff);
+                await _context.SaveChangesAsync();
+            }
 
             return Ok(user);
         }
