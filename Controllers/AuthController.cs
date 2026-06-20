@@ -74,7 +74,7 @@ public class AuthController : ControllerBase
                     GoogleId = payload.Subject,
                     Name = payload.Name ?? "",
                     Email = payload.Email,
-                    RoleId = 2
+                    RoleId = 1
                 };
 
                 _context.Users.Add(user);
@@ -176,7 +176,7 @@ public class AuthController : ControllerBase
                     GoogleId = payload.Subject,
                     Name = payload.Name ?? "",
                     Email = payload.Email,
-                    RoleId = 2
+                    RoleId = 1
                 };
 
                 _context.Users.Add(user);
@@ -188,7 +188,7 @@ public class AuthController : ControllerBase
                 user.GoogleId = payload.Subject;
                 user.Name = payload.Name ?? user.Name;
                 user.Email = payload.Email ?? user.Email;
-                user.RoleId = 2;
+                user.RoleId = 1;
             }
 
             await _context.SaveChangesAsync();
