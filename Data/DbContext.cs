@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<BctqQuestion> BctqQuestions { get; set; }
     public DbSet<BctqAnswer> BctqAnswers { get; set; }
     public DbSet<NcsResult> NcsResults { get; set; }
+    public DbSet<NcsNerveDetail> NcsNerveDetails { get; set; }
     public DbSet<UltrasoundResult> UltrasoundResults { get; set; }
     public DbSet<ClinicalRecord> ClinicalRecords { get; set; }
     public DbSet<PhysicalTest> PhysicalTests { get; set; }
@@ -38,6 +39,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<AssessmentSymptomArea>().ToTable("assessment_symptom_area");
         modelBuilder.Entity<Users>().ToTable("users");
         modelBuilder.Entity<UltrasoundResult>().ToTable("ultrasound_result");
+        modelBuilder.Entity<NcsNerveDetail>().ToTable("ncs_nerve_detail");
         modelBuilder.Entity<NcsResult>().ToTable("ncs_result");
         modelBuilder.Entity<ClinicalRecord>().ToTable("clinical_record");
         modelBuilder.Entity<QuestionType>().ToTable("question_type");

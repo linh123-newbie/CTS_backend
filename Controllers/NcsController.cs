@@ -7,6 +7,7 @@ using System.Text.Json;
 using Amazon.S3;
 using System.Globalization;
 using Amazon.S3.Model;
+using CTS_backend.Models;
 
 
 namespace CTS_backend.Controllers;
@@ -214,28 +215,29 @@ public class NcsController : ControllerBase
             InputStream = stream,
             ContentType = "text/plain"
         };
-
-        try
+        var aiLabel = predictResult?.Pred != null && predictResult.Pred.Count > 0
+    ? predictResult.Pred[0]
+    : null;
+        var ncsNerveDetail = new NcsNerveDetail
         {
-            await _s3Client.PutObjectAsync(putRequest);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
-            {
-                message = "Upload S3 thất bại",
-                error = ex.Message,
-                type = ex.GetType().Name,
-                bucketName,
-                s3Key
-            });
-        }
+            NcsResultId = request.NcsResultId,
+            MeasurementType = request.Type,
+            FilePath = s3Key,
+            AiLabel = aiLabel,
+            AiConfidence = predictResult?.Confidence,
+            NerveType = request.NerveType,
+            FingerIndex = request.FingerIndex
+        };
 
+        _context.NcsNerveDetails.Add(ncsNerveDetail);
+        await _context.SaveChangesAsync();
+
+        await _s3Client.PutObjectAsync(putRequest);
         return Ok(new
         {
             prediction = predictResult,
             fileName = safeFileName,
-            s3Key
+            // s3Key
         });
     }
 
