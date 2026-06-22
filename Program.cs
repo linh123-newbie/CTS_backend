@@ -41,6 +41,14 @@ builder.Services.AddSingleton<IAmazonS3>(sp =>
     var regionName = config["AWS:Region"];
     var accessKey = config["AWS:AWS_ACCESS_KEY_ID"];
     var secretKey = config["AWS:AWS_SECRET_ACCESS_KEY"];
+    if (string.IsNullOrWhiteSpace(regionName))
+        throw new InvalidOperationException("Thiếu AWS:Region");
+
+    if (string.IsNullOrWhiteSpace(accessKey))
+        throw new InvalidOperationException("Thiếu AWS:AWS_ACCESS_KEY_ID");
+
+    if (string.IsNullOrWhiteSpace(secretKey))
+        throw new InvalidOperationException("Thiếu AWS:AWS_SECRET_ACCESS_KEY");
 
     var region = RegionEndpoint.GetBySystemName(regionName);
 
