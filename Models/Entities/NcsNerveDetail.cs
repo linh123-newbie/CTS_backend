@@ -15,8 +15,6 @@ public class NcsNerveDetail
     public int NcsResultId { get; set; }
     [Column("measurement_type")]
     public string? MeasurementType { get; set; }
-    [Column("file_path")]
-    public string? FilePath { get; set; }
     [Column("ai_label")]
     public string? AiLabel { get; set; }
     [Column("ai_confidence")]

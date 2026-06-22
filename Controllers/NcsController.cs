@@ -215,6 +215,7 @@ public class NcsController : ControllerBase
             InputStream = stream,
             ContentType = "text/plain"
         };
+        await _s3Client.PutObjectAsync(putRequest);
         var aiLabel = predictResult?.Pred != null && predictResult.Pred.Count > 0
     ? predictResult.Pred[0]
     : null;
@@ -222,7 +223,6 @@ public class NcsController : ControllerBase
         {
             NcsResultId = request.NcsResultId,
             MeasurementType = request.Type,
-            FilePath = s3Key,
             AiLabel = aiLabel,
             AiConfidence = predictResult?.Confidence,
             NerveType = request.NerveType,
@@ -232,11 +232,24 @@ public class NcsController : ControllerBase
         _context.NcsNerveDetails.Add(ncsNerveDetail);
         await _context.SaveChangesAsync();
 
-        await _s3Client.PutObjectAsync(putRequest);
+        var signalFile = new NcsSignalFile
+        {
+            NcsNerveDetailId = ncsNerveDetail.Id,
+            Site = request.Type,
+            FilePath = s3Key
+        };
+
+        _context.NcsSignalFiles.Add(signalFile);
+        await _context.SaveChangesAsync();
+
+
         return Ok(new
         {
             prediction = predictResult,
             fileName = safeFileName,
+            ncsNerveDetailId = ncsNerveDetail.Id,
+            signalFileId = signalFile.Id,
+            filePath = s3Key
             // s3Key
         });
     }
