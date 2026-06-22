@@ -308,12 +308,35 @@ public class NcsController : ControllerBase
     }
 
     [HttpPost("motor_predict")]
-    [Consumes("application/json")]
-    public async Task<IActionResult> PredictMotorNcs([FromBody] MotorFeatures features)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> PredictMotorNcs([FromForm] MotorPredictRequest request)
     {
+        if (request.File1 == null || request.File1.Length == 0)
+            return BadRequest("Vui lòng chọn file kích thích cổ tay.");
+
+        if (request.File2 == null || request.File2.Length == 0)
+            return BadRequest("Vui lòng chọn file kích thích khuỷu tay.");
+
+        if (Path.GetExtension(request.File1.FileName).ToLower() != ".txt" ||
+            Path.GetExtension(request.File2.FileName).ToLower() != ".txt")
+        {
+            return BadRequest("Chỉ cho phép upload file txt.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.FeaturesJson))
+            return BadRequest("Thiếu đặc trưng motor.");
+
+        var features = JsonSerializer.Deserialize<MotorFeatures>(
+            request.FeaturesJson,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }
+        );
+
         if (features == null)
         {
-            return BadRequest("Vui lòng truyền motor features.");
+            return BadRequest("Đặc trưng vận động không hợp lệ.");
         }
 
         var predictResponse = await _waveformClient.PostAsJsonAsync(
@@ -335,6 +358,70 @@ public class NcsController : ControllerBase
                 PropertyNameCaseInsensitive = true
             }
         );
+        var bucketName = _configuration["AWS:BucketName"];
+        if (string.IsNullOrWhiteSpace(bucketName))
+            return StatusCode(500, "Chưa cấu hình AWS BucketName.");
+
+        var safeFileName1 = Path.GetFileName(request.File1.FileName);
+        var safeFileName2 = Path.GetFileName(request.File2.FileName);
+
+        var wristS3Key =
+            $"motor/{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid()}_wrist_{safeFileName1}";
+
+        var elbowS3Key =
+            $"motor/{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid()}_elbow_{safeFileName2}";
+
+        await using var wristStream = request.File1.OpenReadStream();
+        await _s3Client.PutObjectAsync(new PutObjectRequest
+        {
+            BucketName = bucketName,
+            Key = wristS3Key,
+            InputStream = wristStream,
+            ContentType = "text/plain"
+        });
+
+        await using var elbowStream = request.File2.OpenReadStream();
+        await _s3Client.PutObjectAsync(new PutObjectRequest
+        {
+            BucketName = bucketName,
+            Key = elbowS3Key,
+            InputStream = elbowStream,
+            ContentType = "text/plain"
+        });
+
+        var aiLabel = predictResult?.Pred != null && predictResult.Pred.Count > 0
+            ? predictResult.Pred[0]
+            : null;
+        var ncsNerveDetail = new NcsNerveDetail
+        {
+            NcsResultId = request.NcsResultId,
+            MeasurementType = "motor",
+            AiLabel = aiLabel,
+            AiConfidence = predictResult?.Confidence,
+            NerveType = request.NerveType,
+            FingerIndex = request.FingerIndex
+        };
+
+        _context.NcsNerveDetails.Add(ncsNerveDetail);
+        await _context.SaveChangesAsync();
+
+        var wristSignalFile = new NcsSignalFile
+        {
+            NcsNerveDetailId = ncsNerveDetail.Id,
+            Site = "wrist",
+            FilePath = wristS3Key
+        };
+
+        var elbowSignalFile = new NcsSignalFile
+        {
+            NcsNerveDetailId = ncsNerveDetail.Id,
+            Site = "elbow",
+            FilePath = elbowS3Key
+        };
+
+        _context.NcsSignalFiles.AddRange(wristSignalFile, elbowSignalFile);
+        await _context.SaveChangesAsync();
+
 
         return Ok(predictResult);
     }
