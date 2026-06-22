@@ -215,9 +215,28 @@ public class NcsController : ControllerBase
             ContentType = "text/plain"
         };
 
-        await _s3Client.PutObjectAsync(putRequest);
+        try
+        {
+            await _s3Client.PutObjectAsync(putRequest);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                message = "Upload S3 thất bại",
+                error = ex.Message,
+                type = ex.GetType().Name,
+                bucketName,
+                s3Key
+            });
+        }
 
-        return Ok(predictResult);
+        return Ok(new
+        {
+            prediction = predictResult,
+            fileName = safeFileName,
+            s3Key
+        });
     }
 
     [HttpPost("motor_features")]
