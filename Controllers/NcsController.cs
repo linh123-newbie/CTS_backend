@@ -323,11 +323,55 @@ public class NcsController : ControllerBase
             return BadRequest("Chỉ cho phép upload file txt.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.FeaturesJson))
-            return BadRequest("Thiếu đặc trưng motor.");
+        var featuresJson = request.FeaturesJson;
+
+        if (string.IsNullOrWhiteSpace(featuresJson))
+        {
+            var form = await Request.ReadFormAsync();
+
+            var featureDict = new Dictionary<string, object?>();
+
+            foreach (var item in form)
+            {
+                if (
+                    item.Key.Equals("file1", StringComparison.OrdinalIgnoreCase) ||
+                    item.Key.Equals("file2", StringComparison.OrdinalIgnoreCase) ||
+                    item.Key.Equals("featuresJson", StringComparison.OrdinalIgnoreCase) ||
+                    item.Key.Equals("ncsResultId", StringComparison.OrdinalIgnoreCase) ||
+                    item.Key.Equals("nerveType", StringComparison.OrdinalIgnoreCase) ||
+                    item.Key.Equals("fingerIndex", StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    continue;
+                }
+
+                var value = item.Value.ToString();
+
+                if (double.TryParse(
+                        value,
+                        NumberStyles.Any,
+                        CultureInfo.InvariantCulture,
+                        out var number))
+                {
+                    featureDict[item.Key] = number;
+                }
+                else
+                {
+                    featureDict[item.Key] = value;
+                }
+            }
+
+            if (featureDict.Count > 0)
+            {
+                featuresJson = JsonSerializer.Serialize(featureDict);
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(featuresJson))
+            return BadRequest("Thiếu đặc trưng vận động.");
 
         var features = JsonSerializer.Deserialize<MotorFeatures>(
-            request.FeaturesJson,
+            featuresJson,
             new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
