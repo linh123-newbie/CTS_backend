@@ -1,5 +1,8 @@
 using CTS_backend.Data;
 using Microsoft.EntityFrameworkCore;
+using Amazon;
+using Amazon.Runtime;
+using Amazon.S3;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +32,26 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
+});
+
+builder.Services.AddSingleton<IAmazonS3>(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+
+    var regionName = config["AWS:Region"];
+    var accessKey = config["AWS:AWS_ACCESS_KEY_ID"];
+    var secretKey = config["AWS:AWS_SECRET_ACCESS_KEY"];
+
+    var region = RegionEndpoint.GetBySystemName(regionName);
+
+    if (!string.IsNullOrWhiteSpace(accessKey) &&
+        !string.IsNullOrWhiteSpace(secretKey))
+    {
+        var credentials = new BasicAWSCredentials(accessKey, secretKey);
+        return new AmazonS3Client(credentials, region);
+    }
+
+    return new AmazonS3Client(region);
 });
 
 
