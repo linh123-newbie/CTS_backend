@@ -111,6 +111,11 @@ public class NcsController : ControllerBase
                 PropertyNameCaseInsensitive = true
             }
         );
+        if (result == null)
+        {
+            return StatusCode(500, "Không đọc được kết quả.");
+        }
+        result.Distance = distance;
 
         return Ok(result);
     }
