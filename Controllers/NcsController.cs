@@ -119,6 +119,67 @@ public class NcsController : ControllerBase
 
         return Ok(result);
     }
+    [HttpPost("predict")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> CalculateFeatures(double distance, string markers, IFormFile file)
+    {
+        if (distance <= 0)
+        {
+            return BadRequest("Khoảng cách không hợp lệ.");
+        }
+        if (string.IsNullOrWhiteSpace(markers))
+        {
+            return BadRequest("Thiếu markers.");
+        }
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest("Vui lòng chọn file txt.");
+        }
+
+        var extension = Path.GetExtension(file.FileName).ToLower();
+
+        if (extension != ".txt")
+        {
+            return BadRequest("Chỉ cho phép upload file .txt.");
+        }
+
+        using var formData = new MultipartFormDataContent();
+
+        await using var fileStream = file.OpenReadStream();
+        using var fileContent = new StreamContent(fileStream);
+
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+
+        formData.Add(fileContent, "file", file.FileName);
+        var distanceText = distance.ToString(CultureInfo.InvariantCulture);
+
+         var response = await _waveformClient.PostAsync(
+        $"calculate_features?distance={Uri.EscapeDataString(distanceText)}",
+        formData
+    );
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return StatusCode((int)response.StatusCode, responseBody);
+        }
+
+        var result = JsonSerializer.Deserialize<NcsFeatureResponse>(
+            responseBody,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }
+        );
+        if (result == null)
+        {
+            return StatusCode(500, "Không đọc được kết quả.");
+        }
+        result.Distance = distance;
+
+        return Ok(result);
+    }
 
     [HttpPost("predict")]
     [Consumes("multipart/form-data")]
