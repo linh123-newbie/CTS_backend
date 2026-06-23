@@ -121,7 +121,7 @@ public class NcsController : ControllerBase
     }
     [HttpPost("calculate_features")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> CalculateFeatures(double distance, string markers, IFormFile file)
+    public async Task<IActionResult> CalculateFeatures([FromQuery] double distance,[FromForm]  string markers, IFormFile file)
     {
         if (distance <= 0)
         {
@@ -151,6 +151,7 @@ public class NcsController : ControllerBase
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
 
         formData.Add(fileContent, "file", file.FileName);
+        formData.Add(new StringContent(markers), "markers");
         var distanceText = distance.ToString(CultureInfo.InvariantCulture);
 
          var response = await _waveformClient.PostAsync(
