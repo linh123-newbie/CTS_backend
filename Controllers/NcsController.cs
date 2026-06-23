@@ -64,8 +64,12 @@ public class NcsController : ControllerBase
     }
 
     [HttpPost("features")]
-    public async Task<IActionResult> GetNcsFeatures(IFormFile file)
+    public async Task<IActionResult> GetNcsFeatures(double distance, IFormFile file)
     {
+        if (distance <= 0)
+        {
+            return BadRequest("Khoảng cách không hợp lệ.");
+        }
         if (file == null || file.Length == 0)
         {
             return BadRequest("Vui lòng chọn file txt.");
@@ -86,8 +90,12 @@ public class NcsController : ControllerBase
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
 
         formData.Add(fileContent, "file", file.FileName);
+        var distanceText = distance.ToString(CultureInfo.InvariantCulture);
 
-        var response = await _waveformClient.PostAsync("features", formData);
+        var response = await _waveformClient.PostAsync(
+        $"features?distance={Uri.EscapeDataString(distanceText)}",
+        formData
+    );
 
         var responseBody = await response.Content.ReadAsStringAsync();
 
