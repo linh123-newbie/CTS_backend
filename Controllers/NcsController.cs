@@ -121,16 +121,17 @@ public class NcsController : ControllerBase
     }
     [HttpPost("calculate_features")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> CalculateFeatures([FromQuery] double distance, [FromForm] string markers, IFormFile file)
+    public async Task<IActionResult> CalculateFeatures([FromQuery] double distance, [FromForm] double onset_x, [FromForm] double peak_x, IFormFile file)
     {
         if (distance <= 0)
         {
             return BadRequest("Khoảng cách không hợp lệ.");
         }
-        if (string.IsNullOrWhiteSpace(markers))
+        if (peak_x < onset_x)
         {
-            return BadRequest("Thiếu markers.");
+            return BadRequest("Peak phải lớn hơn onset.");
         }
+
         if (file == null || file.Length == 0)
         {
             return BadRequest("Vui lòng chọn file txt.");
@@ -151,7 +152,13 @@ public class NcsController : ControllerBase
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
 
         formData.Add(fileContent, "file", file.FileName);
-        formData.Add(new StringContent(markers), "markers");
+        var markersJson = JsonSerializer.Serialize(new
+        {
+            onset_x,
+            peak_x
+        });
+
+        formData.Add(new StringContent(markersJson), "markers");
         var distanceText = distance.ToString(CultureInfo.InvariantCulture);
 
         var response = await _waveformClient.PostAsync(
