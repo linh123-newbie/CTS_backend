@@ -119,7 +119,7 @@ public class NcsController : ControllerBase
 
         return Ok(result);
     }
-    [HttpPost("predict")]
+    [HttpPost("calculate_features")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CalculateFeatures(double distance, string markers, IFormFile file)
     {
