@@ -62,6 +62,22 @@ public class NcsController : ControllerBase
 
         return Ok(data);
     }
+    [HttpGet("getSignalResults")]
+    public async Task<ActionResult> GetSignalResults([FromQuery] int ncsResultId, [FromQuery] string measurementType)
+    {
+        var data = await _context.NcsNerveDetails
+            .Where(n => n.NcsResultId == ncsResultId && n.MeasurementType == measurementType)
+            .OrderByDescending(n => n.Id)
+            .Select(n => new
+            {
+                id = n.Id,
+                label = n.AiLabel,
+                confidence = n.AiConfidence,
+            })
+            .ToListAsync();
+
+        return Ok(data);
+    }
 
     [HttpPost("features")]
     public async Task<IActionResult> GetNcsFeatures(double distance, IFormFile file)
