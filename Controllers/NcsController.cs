@@ -281,6 +281,44 @@ public class NcsController : ControllerBase
         return Ok(result);
     }
 
+    private async Task<string?> UpdateNcsResultStatusIfBothPredictedAsync(int? ncsResultId)
+    {
+        if (ncsResultId == null || ncsResultId <= 0)
+        {
+            return null;
+        }
+
+        var ncsResult = await _context.NcsResults
+            .FirstOrDefaultAsync(x => x.Id == ncsResultId);
+
+        if (ncsResult == null)
+        {
+            return null;
+        }
+
+        var hasSensory = await _context.NcsNerveDetails
+            .AnyAsync(x =>
+                x.NcsResultId == ncsResultId &&
+                x.MeasurementType != null &&
+                x.MeasurementType.ToLower() == "sensory" &&
+                x.AiLabel != null);
+
+        var hasMotor = await _context.NcsNerveDetails
+            .AnyAsync(x =>
+                x.NcsResultId == ncsResultId &&
+                x.MeasurementType != null &&
+                x.MeasurementType.ToLower() == "motor" &&
+                x.AiLabel != null);
+
+        if (hasSensory && hasMotor && ncsResult.Status != "DONE")
+        {
+            ncsResult.Status = "DONE";
+            await _context.SaveChangesAsync();
+        }
+
+        return ncsResult.Status;
+    }
+
     [HttpPost("predict")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> PredictNcs([FromForm] NcsPredictRequest request)
@@ -415,6 +453,8 @@ public class NcsController : ControllerBase
 
         _context.NcsSignalFiles.Add(signalFile);
         await _context.SaveChangesAsync();
+
+        var ncsResultStatus = await UpdateNcsResultStatusIfBothPredictedAsync(request.NcsResultId);
 
 
         return Ok(new
@@ -640,6 +680,8 @@ public class NcsController : ControllerBase
         _context.NcsSignalFiles.AddRange(wristSignalFile, elbowSignalFile);
         await _context.SaveChangesAsync();
 
+        var ncsResultStatus = await UpdateNcsResultStatusIfBothPredictedAsync(request.NcsResultId);
+
 
         return Ok(new
         {
@@ -713,4 +755,5 @@ public class NcsController : ControllerBase
             count = rows.Count
         });
     }
+
 }
