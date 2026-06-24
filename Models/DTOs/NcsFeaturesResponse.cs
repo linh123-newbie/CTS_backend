@@ -11,7 +11,7 @@ public class NcsFeatureResponse
     public NcsMarkers? Markers { get; set; }
 
     [JsonPropertyName("features")]
-    public NcsFeatures? Features { get; set; }
+    public NcsFeaturesDto? Features { get; set; }
     [JsonPropertyName("distance")]
     public double? Distance { get; set; }
 }
