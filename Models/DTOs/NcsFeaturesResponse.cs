@@ -19,20 +19,20 @@ public class NcsFeatureResponse
 public class NcsMarkers
 {
     [JsonPropertyName("peak_x")]
-    public double PeakX { get; set; }
+    public double? PeakX { get; set; }
 
     [JsonPropertyName("peak_y")]
-    public double PeakY { get; set; }
+    public double? PeakY { get; set; }
 
     [JsonPropertyName("onset_x")]
-    public double OnsetX { get; set; }
+    public double? OnsetX { get; set; }
 
     [JsonPropertyName("onset_y")]
-    public double OnsetY { get; set; }
+    public double? OnsetY { get; set; }
 
     [JsonPropertyName("offset_x")]
-    public double OffsetX { get; set; }
+    public double? OffsetX { get; set; }
 
     [JsonPropertyName("offset_y")]
-    public double OffsetY { get; set; }
+    public double? OffsetY { get; set; }
 }

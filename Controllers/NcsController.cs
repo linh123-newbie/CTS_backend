@@ -209,9 +209,9 @@ public class NcsController : ControllerBase
         }
 
         var extension1 = Path.GetExtension(file1.FileName).ToLower();
-        var extension2 = Path.GetExtension(file1.FileName).ToLower();
+        var extension2 = Path.GetExtension(file2.FileName).ToLower();
 
-        if (extension1 != ".txt" | extension2 != ".txt")
+        if (extension1 != ".txt" || extension2 != ".txt")
         {
             return BadRequest("Chỉ cho phép upload file .txt.");
         }
@@ -251,7 +251,7 @@ public class NcsController : ControllerBase
             return StatusCode((int)response.StatusCode, responseBody);
         }
 
-        var result = JsonSerializer.Deserialize<NcsFeatureResponse>(
+        var result = JsonSerializer.Deserialize<NcsMotorFeatureResponse>(
             responseBody,
             new JsonSerializerOptions
             {
