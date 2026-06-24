@@ -188,6 +188,82 @@ public class NcsController : ControllerBase
 
         return Ok(result);
     }
+    [HttpPost("calculate_motor_features")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> CalculateMotorFeatures([FromForm] double onset_x1, [FromForm] double peak_x1, [FromForm] double onset_x2, [FromForm] double peak_x2, IFormFile file1, IFormFile file2)
+    {
+
+        if (peak_x1 < onset_x1 || peak_x2 < onset_x2)
+        {
+            return BadRequest("Peak phải lớn hơn onset.");
+        }
+
+
+        if (file1 == null || file1.Length == 0)
+        {
+            return BadRequest("Vui lòng chọn file txt.");
+        }
+        if (file2 == null || file2.Length == 0)
+        {
+            return BadRequest("Vui lòng chọn file txt.");
+        }
+
+        var extension1 = Path.GetExtension(file1.FileName).ToLower();
+        var extension2 = Path.GetExtension(file1.FileName).ToLower();
+
+        if (extension1 != ".txt" | extension2 != ".txt")
+        {
+            return BadRequest("Chỉ cho phép upload file .txt.");
+        }
+
+        using var formData = new MultipartFormDataContent();
+
+        await using var fileStream1 = file1.OpenReadStream();
+        await using var fileStream2 = file2.OpenReadStream();
+        using var fileContent1 = new StreamContent(fileStream1);
+        using var fileContent2 = new StreamContent(fileStream2);
+
+        fileContent1.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+        fileContent2.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+
+        formData.Add(fileContent1, "file1", file1.FileName);
+        formData.Add(fileContent2, "file2", file2.FileName);
+        var markersJson1 = JsonSerializer.Serialize(new
+        {
+            onset_x = onset_x1,
+            peak_x = peak_x1
+        });
+        var markersJson2 = JsonSerializer.Serialize(new
+        {
+            onset_x = onset_x2,
+            peak_x = peak_x2
+        });
+
+        formData.Add(new StringContent(markersJson1), "markers1");
+        formData.Add(new StringContent(markersJson2), "markers2");
+
+        var response = await _waveformClient.PostAsync($"calculate_motor_features", formData);
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return StatusCode((int)response.StatusCode, responseBody);
+        }
+
+        var result = JsonSerializer.Deserialize<NcsFeatureResponse>(
+            responseBody,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }
+        );
+        if (result == null)
+        {
+            return StatusCode(500, "Không đọc được kết quả.");
+        }
+        return Ok(result);
+    }
 
     [HttpPost("predict")]
     [Consumes("multipart/form-data")]
