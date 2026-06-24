@@ -641,7 +641,11 @@ public class NcsController : ControllerBase
         await _context.SaveChangesAsync();
 
 
-        return Ok(predictResult);
+        return Ok(new
+        {
+            prediction = predictResult,
+            ncsNerveDetailId = ncsNerveDetail.Id
+        });
     }
 
     [HttpPost("saveNcsNerveValues")]
