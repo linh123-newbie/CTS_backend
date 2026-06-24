@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace CTS_backend.Models.DTOs;
 
-public class NcsFeatures
+public class NcsFeaturesDto
 {
     [JsonPropertyName("hs (uV)")]
     public double Hs { get; set; }

@@ -337,7 +337,7 @@ public class NcsController : ControllerBase
         if (string.IsNullOrWhiteSpace(featuresJson))
             return BadRequest("Thiếu đặc trưng dẫn truyền.");
 
-        var features = JsonSerializer.Deserialize<NcsFeatures>(
+        var features = JsonSerializer.Deserialize<NcsFeaturesDto>(
             featuresJson,
             new JsonSerializerOptions
             {
@@ -642,5 +642,71 @@ public class NcsController : ControllerBase
 
 
         return Ok(predictResult);
+    }
+
+    [HttpPost("saveNcsNerveValues")]
+    public async Task<IActionResult> SaveNcsNerveValues(
+    [FromBody] SaveNcsNerveValuesDto request)
+    {
+        if (request.NcsNerveDetailId <= 0)
+        {
+            return BadRequest("Thiếu ncsNerveDetailId.");
+        }
+
+        if (request.Values == null || request.Values.Count == 0)
+        {
+            return BadRequest("Thiếu danh sách feature values.");
+        }
+
+        var detailExists = await _context.NcsNerveDetails
+            .AnyAsync(x => x.Id == request.NcsNerveDetailId);
+
+        if (!detailExists)
+        {
+            return NotFound("Không tìm thấy ncs_nerve_detail.");
+        }
+
+        var featureIds = request.Values
+            .Select(x => x.NcsFeatureId)
+            .Distinct()
+            .ToList();
+
+        var validFeatureIds = await _context.NcsFeatures
+            .Where(x => featureIds.Contains(x.Id))
+            .Select(x => x.Id)
+            .ToListAsync();
+
+        var invalidFeatureIds = featureIds
+            .Where(id => !validFeatureIds.Contains(id))
+            .ToList();
+
+        if (invalidFeatureIds.Count > 0)
+        {
+            return BadRequest(new
+            {
+                message = "Có ncs_feature_id không tồn tại.",
+                invalidFeatureIds
+            });
+        }
+
+        var rows = request.Values
+            .Where(x => x.NcsFeatureId > 0)
+            .Select(x => new NcsNerveValue
+            {
+                NcsNerveDetailId = request.NcsNerveDetailId,
+                NcsFeatureId = x.NcsFeatureId,
+                Value = x.Value
+            })
+            .ToList();
+
+        _context.NcsNerveValues.AddRange(rows);
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            message = "Lưu ncs_nerve_value thành công.",
+            count = rows.Count
+        });
     }
 }
