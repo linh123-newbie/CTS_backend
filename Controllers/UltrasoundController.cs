@@ -120,7 +120,8 @@ public class UltrasoundController : ControllerBase
             predMaskUrl = segmentResult.PredMaskUrl,
             markedUrl = segmentResult.MarkedUrl,
             csaMm2 = segmentResult.CsaMm2,
-            status = ultrasoundResult.Status
+            status = ultrasoundResult.Status,
+            contourPoints = segmentResult.ContourPoints ?? new List<UltrasoundContourPointResponse>(),
         });
     }
 

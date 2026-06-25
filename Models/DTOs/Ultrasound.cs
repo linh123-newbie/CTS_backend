@@ -20,8 +20,23 @@ public class UltrasoundSegmentResponse
     [JsonPropertyName("csa_mm2")]
     public double? CsaMm2 { get; set; }
 
+    [JsonPropertyName("contour_points")]
+    public List<UltrasoundContourPointResponse>? ContourPoints { get; set; }
+
     // [JsonPropertyName("image_prediction")]
     // public ImagePrediction? ImagePrediction { get; set; }
+}
+
+public class UltrasoundContourPointResponse
+{
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+
+    [JsonPropertyName("kind")]
+    public string? Kind { get; set; }
 }
 
 public class ImagePrediction
