@@ -263,6 +263,7 @@ public class UltrasoundController : ControllerBase
         {
             pythonResponse = await client.PostAsJsonAsync("cal_csa", new
             {
+                originalUrl = ultrasoundResult.ImageUrl,
                 contours = request.Contours.Select(point => new
                 {
                     x = point.X,
@@ -309,6 +310,7 @@ public class UltrasoundController : ControllerBase
         }
 
         ultrasoundResult.Csa = calCsaResult.CsaMm2;
+        ultrasoundResult.MaskUrl = calCsaResult.PredMaskUrl;
         // ultrasoundResult.Status = "SEGMENTED";
 
         await _context.SaveChangesAsync();
@@ -318,6 +320,7 @@ public class UltrasoundController : ControllerBase
             // success = true,
             // ultrasoundResultId = ultrasoundResult.Id,
             csaMm2 = calCsaResult.CsaMm2,
+            pred_mask_url = calCsaResult.PredMaskUrl,
             // areaPx = calCsaResult.AreaPx,
             // status = ultrasoundResult.Status
         });

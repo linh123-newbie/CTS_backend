@@ -4,6 +4,8 @@ public class CalCsaRequest
 {
     [JsonPropertyName("ultrasoundResultId")]
     public int UltrasoundResultId { get; set; }
+    [JsonPropertyName("originalUrl")]
+    public string? OriginalUrl { get; set; }
 
     [JsonPropertyName("contours")]
     public List<UltrasoundContourPointRequest> Contours { get; set; } = new();
@@ -26,6 +28,6 @@ public class PythonCalCsaResponse
     [JsonPropertyName("csa_mm2")]
     public double CsaMm2 { get; set; }
 
-    [JsonPropertyName("area_px")]
-    public double AreaPx { get; set; }
+    [JsonPropertyName("pred_mask_url")]
+    public string? PredMaskUrl { get; set; }
 }
