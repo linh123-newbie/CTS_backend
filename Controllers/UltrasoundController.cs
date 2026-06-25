@@ -224,4 +224,102 @@ public class UltrasoundController : ControllerBase
             fusionPrediction = result.FusionPrediction
         });
     }
+
+    [HttpPost("cal_csa")]
+    public async Task<ActionResult> CalCsa([FromBody] CalCsaRequest request)
+    {
+        if (request == null)
+        {
+            return BadRequest(new
+            {
+                message = "Request không hợp lệ."
+            });
+        }
+
+        if (request.Contours == null || request.Contours.Count < 3)
+        {
+            return BadRequest(new
+            {
+                message = "Cần ít nhất 3 điểm contour để tính CSA."
+            });
+        }
+
+        var ultrasoundResult = await _context.UltrasoundResults
+            .FirstOrDefaultAsync(x => x.Id == request.UltrasoundResultId);
+
+        if (ultrasoundResult == null)
+        {
+            return NotFound(new
+            {
+                message = "Lỗi, ko tìm thấy kết quả."
+            });
+        }
+
+        var client = _httpClientFactory.CreateClient("UltrasoundAi");
+
+        HttpResponseMessage pythonResponse;
+
+        try
+        {
+            pythonResponse = await client.PostAsJsonAsync("cal_csa", new
+            {
+                contours = request.Contours.Select(point => new
+                {
+                    x = point.X,
+                    y = point.Y,
+                    kind = point.Kind
+                }).ToList()
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                message = "Không gọi được API cal_csa bên Python.",
+                error = ex.Message
+            });
+        }
+
+        var json = await pythonResponse.Content.ReadAsStringAsync();
+
+        if (!pythonResponse.IsSuccessStatusCode)
+        {
+            return StatusCode((int)pythonResponse.StatusCode, new
+            {
+                message = "Python API cal_csa trả lỗi.",
+                detail = json
+            });
+        }
+
+        var calCsaResult = JsonSerializer.Deserialize<PythonCalCsaResponse>(
+            json,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }
+        );
+
+        if (calCsaResult == null)
+        {
+            return StatusCode(500, new
+            {
+                message = "Không parse được response từ Python cal_csa.",
+                raw = json
+            });
+        }
+
+        ultrasoundResult.Csa = calCsaResult.CsaMm2;
+        // ultrasoundResult.Status = "SEGMENTED";
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            // success = true,
+            // ultrasoundResultId = ultrasoundResult.Id,
+            csaMm2 = calCsaResult.CsaMm2,
+            // areaPx = calCsaResult.AreaPx,
+            // status = ultrasoundResult.Status
+        });
+    }
 }
