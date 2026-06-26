@@ -14,7 +14,7 @@ public class ClinicalRecord
     public int PatientId { get; set; }
     [Column("doctor_id")]
     public int DoctorId { get; set; }
-    [Column("time", TypeName = "timestamp without time zone")]
+    [Column("time")]
     public DateTime Time { get; set; }
     [Column("result")]
     public String Result { get; set; } = string.Empty;
