@@ -213,8 +213,8 @@ public class OverviewController : ControllerBase
             join p in _context.Patients on c.PatientId equals p.Id
             join n in _context.NcsResults on c.Id equals n.ClinicalRecordId
             where s.UserId == doctorUserId
-                  && c.Result != null
-                  && c.Result.Trim() != ""
+                //   && c.Result != null
+                //   && c.Result.Trim() != ""
             select new
             {
                 time = c.Time,
