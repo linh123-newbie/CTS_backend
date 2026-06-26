@@ -47,7 +47,14 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<UltrasoundResult>().ToTable("ultrasound_result");
         modelBuilder.Entity<NcsNerveDetail>().ToTable("ncs_nerve_detail");
         modelBuilder.Entity<NcsResult>().ToTable("ncs_result");
-        modelBuilder.Entity<ClinicalRecord>().ToTable("clinical_record");
+        modelBuilder.Entity<ClinicalRecord>(entity =>
+{
+    entity.ToTable("clinical_record");
+
+    entity.Property(e => e.Time)
+        .HasColumnName("time")
+        .HasColumnType("timestamp without time zone");
+});
         modelBuilder.Entity<QuestionType>().ToTable("question_type");
         modelBuilder.Entity<BctqQuestion>().ToTable("bctq_question");
         modelBuilder.Entity<BctqAnswer>().ToTable("bctq_answer");

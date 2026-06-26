@@ -310,11 +310,20 @@ public class NcsController : ControllerBase
                 x.MeasurementType.ToLower() == "motor" &&
                 x.AiLabel != null);
 
-        if (hasSensory && hasMotor && ncsResult.Status != "DONE")
+
+        if (hasSensory && hasMotor)
         {
-            ncsResult.Status = "DONE";
-            await _context.SaveChangesAsync();
+            ncsResult.Status = "CONFIRM";
         }
+        else if (hasSensory || hasMotor)
+        {
+            ncsResult.Status = "PROCESSING";
+        }
+        else
+        {
+            ncsResult.Status = "Chưa xử lý";
+        }
+        await _context.SaveChangesAsync();
 
         return ncsResult.Status;
     }

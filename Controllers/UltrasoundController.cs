@@ -202,7 +202,7 @@ public class UltrasoundController : ControllerBase
         ultrasoundResult.MaskUrl = predMaskUrl;
         ultrasoundResult.Csa = csaMm2;
         ultrasoundResult.Label = finalLabel;
-        ultrasoundResult.Status = "DONE";
+        ultrasoundResult.Status = "CONFIRM";
 
         await _context.SaveChangesAsync();
 
