@@ -4,17 +4,19 @@ namespace CTS_backend.Models.DTOs;
 
 public class MotorFeatureResponse
 {
-    [JsonPropertyName("filename1")]
+    [JsonPropertyName("filename")]
     public string? Filename1 { get; set; }
-
-    [JsonPropertyName("filename2")]
-    public string? Filename2 { get; set; }
 
     [JsonPropertyName("markers1")]
     public MotorMarker? Markers1 { get; set; }
 
     [JsonPropertyName("markers2")]
     public MotorMarker? Markers2 { get; set; }
+
+    [JsonPropertyName("a1_signal_url")]
+    public string? A1SignalUrl { get; set; }
+    [JsonPropertyName("a2_signal_url")]
+    public string? A2SignalUrl { get; set; }
 
     [JsonPropertyName("features")]
     public MotorFeatures? Features { get; set; }

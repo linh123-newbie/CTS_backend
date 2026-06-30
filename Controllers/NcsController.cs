@@ -479,38 +479,29 @@ public class NcsController : ControllerBase
 
     [HttpPost("motor_features")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> GetMotorFeatures(IFormFile file1, IFormFile file2)
+    public async Task<IActionResult> GetMotorFeatures(IFormFile file)
     {
 
-        if (file1 == null || file1.Length == 0)
+        if (file == null || file.Length == 0)
         {
-            return BadRequest("Vui lòng chọn file A1.txt.");
+            return BadRequest("Vui lòng chọn file ảnh tín hiệu vận động.");
         }
 
-        if (file2 == null || file2.Length == 0)
-        {
-            return BadRequest("Vui lòng chọn file A2.txt.");
-        }
+       var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
 
-        if (Path.GetExtension(file1.FileName).ToLower() != ".txt" ||
-            Path.GetExtension(file2.FileName).ToLower() != ".txt")
+        if (extension != ".png" && extension != ".jpg" && extension != ".jpeg")
         {
-            return BadRequest("Chỉ cho phép upload file .txt.");
+            return BadRequest("Chỉ cho phép upload ảnh PNG/JPG.");
         }
 
         using var formData = new MultipartFormDataContent();
 
-        await using var fileStream1 = file1.OpenReadStream();
-        using var fileContent1 = new StreamContent(fileStream1);
-        fileContent1.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
-        formData.Add(fileContent1, "file1", file1.FileName);
+        await using var fileStream = file.OpenReadStream();
+        using var fileContent = new StreamContent(fileStream);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+        formData.Add(fileContent, "file", file.FileName);
 
-        await using var fileStream2 = file2.OpenReadStream();
-        using var fileContent2 = new StreamContent(fileStream2);
-        fileContent2.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
-        formData.Add(fileContent2, "file2", file2.FileName);
-
-        var response = await _waveformClient.PostAsync("motor_features", formData);
+        var response = await _waveformClient.PostAsync("input/motor", formData);
 
         var responseBody = await response.Content.ReadAsStringAsync();
 
