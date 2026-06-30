@@ -40,14 +40,35 @@ public class MotorMarker
 public class MotorFeatures
 {
     [JsonPropertyName("HmD")]
-    public double HmD { get; set; }
+    public double? HmD { get; set; }
 
     [JsonPropertyName("HmP")]
-    public double HmP { get; set; }
+    public double? HmP { get; set; }
 
     [JsonPropertyName("HmD_takeoff")]
-    public double HmDTakeoff { get; set; }
+    public double? HmDTakeoff { get; set; }
 
     [JsonPropertyName("HmP_takeoff")]
-    public double HmPTakeoff { get; set; }
+    public double? HmPTakeoff { get; set; }
+
+    [JsonPropertyName("delta_takeoff")]
+    public double? DeltaTakeoff { get; set; }
+
+    [JsonPropertyName("w_peak_lat")]
+    public double? WPeakLat { get; set; }
+
+    [JsonPropertyName("w_duration")]
+    public double? WDuration { get; set; }
+
+    [JsonPropertyName("w_left_slope")]
+    public double? WLeftSlope { get; set; }
+
+    [JsonPropertyName("e_peak_lat")]
+    public double? EPeakLat { get; set; }
+
+    [JsonPropertyName("e_duration")]
+    public double? EDuration { get; set; }
+
+    [JsonPropertyName("e_left_slope")]
+    public double? ELeftSlope { get; set; }
 }
