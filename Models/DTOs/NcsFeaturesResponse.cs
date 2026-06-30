@@ -6,6 +6,8 @@ public class NcsFeatureResponse
 {
     [JsonPropertyName("filename")]
     public string? Filename { get; set; }
+    [JsonPropertyName("scaled_signal")]
+    public string? ScaledSignal { get; set; }
 
     [JsonPropertyName("markers")]
     public NcsMarkers? Markers { get; set; }

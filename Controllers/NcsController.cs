@@ -88,14 +88,14 @@ public class NcsController : ControllerBase
         }
         if (file == null || file.Length == 0)
         {
-            return BadRequest("Vui lòng chọn file txt.");
+            return BadRequest("Vui lòng chọn file ảnh.");
         }
 
         var extension = Path.GetExtension(file.FileName).ToLower();
 
-        if (extension != ".txt")
+        if (extension != ".png" && extension != ".jpg" && extension != ".jpeg")
         {
-            return BadRequest("Chỉ cho phép upload file .txt.");
+            return BadRequest("Chỉ cho phép upload ảnh PNG/JPG.");
         }
 
         using var formData = new MultipartFormDataContent();
@@ -103,13 +103,13 @@ public class NcsController : ControllerBase
         await using var fileStream = file.OpenReadStream();
         using var fileContent = new StreamContent(fileStream);
 
-        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
 
         formData.Add(fileContent, "file", file.FileName);
         var distanceText = distance.ToString(CultureInfo.InvariantCulture);
 
         var response = await _waveformClient.PostAsync(
-        $"features?distance={Uri.EscapeDataString(distanceText)}",
+        $"input/sensory_features?distance={Uri.EscapeDataString(distanceText)}",
         formData
     );
 
