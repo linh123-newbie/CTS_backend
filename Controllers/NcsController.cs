@@ -146,6 +146,8 @@ public class NcsController : ControllerBase
         _context.NcsSignalFiles.Add(ncsSignalFile);
         await _context.SaveChangesAsync();
 
+        result.NcsNerveDetailId = ncsNerveDetail.Id;
+
 
         return Ok(result);
     }

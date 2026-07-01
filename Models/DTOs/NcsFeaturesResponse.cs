@@ -8,6 +8,8 @@ public class NcsFeatureResponse
     public string? Filename { get; set; }
     [JsonPropertyName("scaled_signal_url")]
     public string? ScaledSignal { get; set; }
+    [JsonPropertyName("ncsNerveDetailId")]
+    public int NcsNerveDetailId { get; set; }
 
     [JsonPropertyName("markers")]
     public NcsMarkers? Markers { get; set; }
