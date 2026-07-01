@@ -1,9 +1,7 @@
 public class NcsPredictRequest
 {
-    public IFormFile? File { get; set; }
-    public string? Type { get; set; } // sensory / motor
-
-    public string? FeaturesJson { get; set; }
+    public IFormFile? Image { get; set; } // sensory / motor
+    public double? Distance { get; set; } // sensory / motor
 
     public int NcsResultId { get; set; }
 
