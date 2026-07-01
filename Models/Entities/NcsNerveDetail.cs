@@ -12,7 +12,7 @@ public class NcsNerveDetail
     [Column("id")]
     public int Id { get; set; }
     [Column("ncs_result_id")]
-    public int NcsResultId { get; set; }
+    public int? NcsResultId { get; set; }
     [Column("measurement_type")]
     public string? MeasurementType { get; set; }
     [Column("ai_label")]
