@@ -20,6 +20,8 @@ public class MotorFeatureResponse
 
     [JsonPropertyName("features")]
     public MotorFeatures? Features { get; set; }
+    [JsonPropertyName("ncsNerveDetail")]
+    public int? NcsNerveDetailId { get; set; }
 }
 
 public class MotorMarker

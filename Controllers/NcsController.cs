@@ -556,15 +556,16 @@ public class NcsController : ControllerBase
 
     [HttpPost("motor_features")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> GetMotorFeatures(IFormFile file)
+    public async Task<IActionResult> GetMotorFeatures(NcsRequest request)
     {
 
-        if (file == null || file.Length == 0)
+        if (request.Image == null || request.Image.Length == 0)
         {
-            return BadRequest("Vui lòng chọn file ảnh tín hiệu vận động.");
+            return BadRequest("Vui lòng chọn file ảnh.");
         }
 
-        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+        var extension = Path.GetExtension(request.Image.FileName).ToLowerInvariant();
 
         if (extension != ".png" && extension != ".jpg" && extension != ".jpeg")
         {
@@ -573,10 +574,10 @@ public class NcsController : ControllerBase
 
         using var formData = new MultipartFormDataContent();
 
-        await using var fileStream = file.OpenReadStream();
+        await using var fileStream = request.Image.OpenReadStream();
         using var fileContent = new StreamContent(fileStream);
-        fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
-        formData.Add(fileContent, "file", file.FileName);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue(request.Image.ContentType);
+        formData.Add(fileContent, "file", request.Image.FileName);
 
         var response = await _waveformClient.PostAsync("input/motor", formData);
 
@@ -594,6 +595,39 @@ public class NcsController : ControllerBase
                 PropertyNameCaseInsensitive = true
             }
         );
+        if (result == null)
+        {
+            return StatusCode(500, "Không đọc được kết quả.");
+        }
+
+        var ncsNerveDetail = new NcsNerveDetail
+        {
+            NcsResultId = request.NcsResultId,
+            MeasurementType = "motor",
+            NerveType = request.NerveType,
+            FingerIndex = request.FingerIndex
+        };
+        _context.NcsNerveDetails.Add(ncsNerveDetail);
+        await _context.SaveChangesAsync();
+        
+        var ncsSignalFile1 = new NcsSignalFile
+        {
+            Site = "wrist",
+            FilePath = result.A1SignalUrl,
+            NcsNerveDetailId = ncsNerveDetail.Id,
+        };
+        _context.NcsSignalFiles.Add(ncsSignalFile1);
+
+        var ncsSignalFile2 = new NcsSignalFile
+        {
+            Site = "elbow",
+            FilePath = result.A2SignalUrl,
+            NcsNerveDetailId = ncsNerveDetail.Id,
+        };
+        _context.NcsSignalFiles.Add(ncsSignalFile2);
+        await _context.SaveChangesAsync();
+
+        result.NcsNerveDetailId = ncsNerveDetail.Id;
 
         return Ok(result);
     }
