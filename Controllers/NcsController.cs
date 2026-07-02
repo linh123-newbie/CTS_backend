@@ -609,7 +609,7 @@ public class NcsController : ControllerBase
         };
         _context.NcsNerveDetails.Add(ncsNerveDetail);
         await _context.SaveChangesAsync();
-        
+
         var ncsSignalFile1 = new NcsSignalFile
         {
             Site = "wrist",
@@ -636,169 +636,207 @@ public class NcsController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> PredictMotorNcs([FromForm] MotorPredictRequest request)
     {
-        // if (request.File1 == null || request.File1.Length == 0)
-        //     return BadRequest("Vui lòng chọn file kích thích cổ tay.");
+        if (!request.NcsResultId.HasValue || request.NcsResultId.Value <= 0)
+        {
+            return BadRequest("Thiếu mã kết quả NCS.");
+        }
 
-        // if (request.File2 == null || request.File2.Length == 0)
-        //     return BadRequest("Vui lòng chọn file kích thích khuỷu tay.");
+        if (!request.NcsNerveDetailId.HasValue || request.NcsNerveDetailId.Value <= 0)
+        {
+            return BadRequest("Thiếu ncsNerveDetailId.");
+        }
 
-        // if (Path.GetExtension(request.File1.FileName).ToLower() != ".txt" ||
-        //     Path.GetExtension(request.File2.FileName).ToLower() != ".txt")
-        // {
-        //     return BadRequest("Chỉ cho phép upload file txt.");
-        // }
+        var featuresJson = request.FeaturesJson;
+        if (string.IsNullOrWhiteSpace(featuresJson))
+        {
+            var form = await Request.ReadFormAsync();
 
-        // var featuresJson = request.FeaturesJson;
+            var formFeatureDict = new Dictionary<string, object?>();
 
-        // if (string.IsNullOrWhiteSpace(featuresJson))
-        // {
-        //     var form = await Request.ReadFormAsync();
+            foreach (var item in form)
+            {
+                if (
+                    item.Key.Equals("ncsResultId", StringComparison.OrdinalIgnoreCase) ||
+                    item.Key.Equals("ncsNerveDetailId", StringComparison.OrdinalIgnoreCase) ||
+                    item.Key.Equals("featuresJson", StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    continue;
+                }
+                var valueText = item.Value.ToString();
 
-        //     var featureDict = new Dictionary<string, object?>();
+                if (double.TryParse(
+                        valueText,
+                        NumberStyles.Any,
+                        CultureInfo.InvariantCulture,
+                        out var number))
+                {
+                    formFeatureDict[item.Key] = number;
+                }
+                else
+                {
+                    formFeatureDict[item.Key] = valueText;
+                }
 
-        //     foreach (var item in form)
-        //     {
-        //         if (
-        //             item.Key.Equals("file1", StringComparison.OrdinalIgnoreCase) ||
-        //             item.Key.Equals("file2", StringComparison.OrdinalIgnoreCase) ||
-        //             item.Key.Equals("featuresJson", StringComparison.OrdinalIgnoreCase) ||
-        //             item.Key.Equals("ncsResultId", StringComparison.OrdinalIgnoreCase) ||
-        //             item.Key.Equals("nerveType", StringComparison.OrdinalIgnoreCase) ||
-        //             item.Key.Equals("fingerIndex", StringComparison.OrdinalIgnoreCase)
-        //         )
-        //         {
-        //             continue;
-        //         }
+            }
+            if (formFeatureDict.Count > 0)
+            {
+                featuresJson = JsonSerializer.Serialize(formFeatureDict);
+            }
 
-        //         var value = item.Value.ToString();
+        }
+        if (string.IsNullOrWhiteSpace(featuresJson))
+        {
+            return BadRequest("Thiếu đặc trưng dẫn truyền.");
+        }
+        var ncsNerveDetail = await _context.NcsNerveDetails
+            .FirstOrDefaultAsync(x =>
+                x.Id == request.NcsNerveDetailId.Value &&
+                x.NcsResultId == request.NcsResultId.Value
+            );
 
-        //         if (double.TryParse(
-        //                 value,
-        //                 NumberStyles.Any,
-        //                 CultureInfo.InvariantCulture,
-        //                 out var number))
-        //         {
-        //             featureDict[item.Key] = number;
-        //         }
-        //         else
-        //         {
-        //             featureDict[item.Key] = value;
-        //         }
-        //     }
+        if (ncsNerveDetail == null)
+        {
+            return NotFound("Không tìm thấy ncs_nerve_detail.");
+        }
 
-        //     if (featureDict.Count > 0)
-        //     {
-        //         featuresJson = JsonSerializer.Serialize(featureDict);
-        //     }
-        // }
+        var predictResponse = await _waveformClient.PostAsync(
+            "motor_predict",
+            new StringContent(featuresJson, Encoding.UTF8, "application/json")
+        );
 
-        // if (string.IsNullOrWhiteSpace(featuresJson))
-        //     return BadRequest("Thiếu đặc trưng vận động.");
+        var predictBody = await predictResponse.Content.ReadAsStringAsync();
 
-        // var features = JsonSerializer.Deserialize<MotorFeatures>(
-        //     featuresJson,
-        //     new JsonSerializerOptions
-        //     {
-        //         PropertyNameCaseInsensitive = true
-        //     }
-        // );
+        if (!predictResponse.IsSuccessStatusCode)
+        {
+            return StatusCode((int)predictResponse.StatusCode, predictBody);
+        }
 
-        // if (features == null)
-        // {
-        //     return BadRequest("Đặc trưng vận động không hợp lệ.");
-        // }
+        var predictResult = JsonSerializer.Deserialize<NcsPredictResponse>(
+            predictBody,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }
+        );
 
-        // var predictResponse = await _waveformClient.PostAsJsonAsync(
-        //     "motor_predict",
-        //     features
-        // );
+        var aiLabel = predictResult?.Pred != null && predictResult.Pred.Count > 0
+            ? predictResult.Pred[0]
+            : null;
 
-        // var predictBody = await predictResponse.Content.ReadAsStringAsync();
+        ncsNerveDetail.AiLabel = aiLabel;
+        ncsNerveDetail.AiConfidence = predictResult?.Confidence;
 
-        // if (!predictResponse.IsSuccessStatusCode)
-        // {
-        //     return StatusCode((int)predictResponse.StatusCode, predictBody);
-        // }
+        await _context.SaveChangesAsync();
 
-        // var predictResult = JsonSerializer.Deserialize<MotorPredictResponse>(
-        //     predictBody,
-        //     new JsonSerializerOptions
-        //     {
-        //         PropertyNameCaseInsensitive = true
-        //     }
-        // );
-        // var bucketName = _configuration["AWS:BucketName"];
-        // if (string.IsNullOrWhiteSpace(bucketName))
-        //     return StatusCode(500, "Chưa cấu hình AWS BucketName.");
+        Dictionary<string, JsonElement>? featureDict;
+        try
+        {
+            featureDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                featuresJson,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }
+            );
+        }
+        catch
+        {
+            return BadRequest("FeaturesJson không hợp lệ.");
+        }
 
-        // var safeFileName1 = Path.GetFileName(request.File1.FileName);
-        // var safeFileName2 = Path.GetFileName(request.File2.FileName);
+        if (featureDict == null || featureDict.Count == 0)
+        {
+            return BadRequest("FeaturesJson rỗng.");
+        }
 
-        // var wristS3Key =
-        //     $"motor/{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid()}_wrist_{safeFileName1}";
+        var featureIdMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["HmD"] = 16,
+            ["HmP"] = 17,
+            ["HmD_takeoff"] = 18,
+            ["HmP_takeoff"] = 19,
+            ["delta_takeoff"] = 20,
+            ["w_peak_lat"] = 21,
+            ["w_duration"] = 22,
+            ["w_left_slope"] = 23,
+            ["e_peak_lat"] = 24,
+            ["e_duration"] = 25,
+            ["e_left_slope"] = 26,
+        };
 
-        // var elbowS3Key =
-        //     $"motor/{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid()}_elbow_{safeFileName2}";
+        var rows = new List<NcsNerveValue>();
 
-        // await using var wristStream = request.File1.OpenReadStream();
-        // await _s3Client.PutObjectAsync(new PutObjectRequest
-        // {
-        //     BucketName = bucketName,
-        //     Key = wristS3Key,
-        //     InputStream = wristStream,
-        //     ContentType = "text/plain"
-        // });
+        foreach (var item in featureDict)
+        {
+            if (!featureIdMap.TryGetValue(item.Key, out var featureId))
+            {
+                continue;
+            }
+            double value;
 
-        // await using var elbowStream = request.File2.OpenReadStream();
-        // await _s3Client.PutObjectAsync(new PutObjectRequest
-        // {
-        //     BucketName = bucketName,
-        //     Key = elbowS3Key,
-        //     InputStream = elbowStream,
-        //     ContentType = "text/plain"
-        // });
+            if (item.Value.ValueKind == JsonValueKind.Number)
+            {
+                value = item.Value.GetDouble();
+            }
+            else if (
+                item.Value.ValueKind == JsonValueKind.String &&
+                double.TryParse(
+                    item.Value.GetString(),
+                    NumberStyles.Any,
+                    CultureInfo.InvariantCulture,
+                    out var parsedValue
+                )
+            )
+            {
+                value = parsedValue;
+            }
+            else
+            {
+                continue;
+            }
+            if (!double.IsFinite(value))
+            {
+                continue;
+            }
 
-        // var aiLabel = predictResult?.Pred != null && predictResult.Pred.Count > 0
-        //     ? predictResult.Pred[0]
-        //     : null;
-        // var ncsNerveDetail = new NcsNerveDetail
-        // {
-        //     NcsResultId = request.NcsResultId,
-        //     MeasurementType = "motor",
-        //     AiLabel = aiLabel,
-        //     AiConfidence = predictResult?.Confidence,
-        //     NerveType = request.NerveType,
-        //     FingerIndex = request.FingerIndex
-        // };
+            rows.Add(new NcsNerveValue
+            {
+                NcsNerveDetailId = ncsNerveDetail.Id,
+                NcsFeatureId = featureId,
+                Value = value
+            });
 
-        // _context.NcsNerveDetails.Add(ncsNerveDetail);
-        // await _context.SaveChangesAsync();
 
-        // var wristSignalFile = new NcsSignalFile
-        // {
-        //     NcsNerveDetailId = ncsNerveDetail.Id,
-        //     Site = "wrist",
-        //     FilePath = wristS3Key
-        // };
+        }
 
-        // var elbowSignalFile = new NcsSignalFile
-        // {
-        //     NcsNerveDetailId = ncsNerveDetail.Id,
-        //     Site = "elbow",
-        //     FilePath = elbowS3Key
-        // };
+        if (rows.Count > 0)
+        {
+            var oldValues = await _context.NcsNerveValues
+                .Where(x => x.NcsNerveDetailId == ncsNerveDetail.Id)
+                .ToListAsync();
 
-        // _context.NcsSignalFiles.AddRange(wristSignalFile, elbowSignalFile);
-        // await _context.SaveChangesAsync();
+            if (oldValues.Count > 0)
+            {
+                _context.NcsNerveValues.RemoveRange(oldValues);
+                await _context.SaveChangesAsync();
+            }
 
-        // var ncsResultStatus = await UpdateNcsResultStatusIfBothPredictedAsync(request.NcsResultId);
+            _context.NcsNerveValues.AddRange(rows);
+            await _context.SaveChangesAsync();
+        }
 
+        var ncsResultStatus = await UpdateNcsResultStatusIfBothPredictedAsync(request.NcsResultId);
 
         return Ok(new
         {
-            // prediction = predictResult,
-            // ncsNerveDetailId = ncsNerveDetail.Id
+            prediction = predictResult,
+            ncsNerveDetailId = ncsNerveDetail.Id,
+            savedFeatureValueCount = rows.Count,
+            status = ncsResultStatus
         });
+
+
     }
 
     [HttpPost("saveNcsNerveValues")]
