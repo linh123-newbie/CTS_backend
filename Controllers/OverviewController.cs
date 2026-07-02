@@ -70,6 +70,26 @@ public class OverviewController : ControllerBase
         });
     }
 
+    private string GetOverallSessionStatus(List<string> statuses)
+    {
+        if (statuses == null || statuses.Count == 0)
+        {
+            return "Chưa xử lý";
+        }
+
+        if (statuses.All(x => x == "Hoàn tất" || x == "Đã xác nhận"))
+        {
+            return "Hoàn tất";
+        }
+
+        if (statuses.Any(x => x == "Đang xử lý" || x == "Chờ xác nhận"))
+        {
+            return "Đang xử lý";
+        }
+
+        return "Chưa xử lý";
+    }
+
     [HttpGet("getSession")]
     public async Task<ActionResult> GetSession([FromQuery] int doctorUserId)
     {
@@ -86,6 +106,7 @@ public class OverviewController : ControllerBase
                   && c.Time < tomorrow
             select new
             {
+                clinicalRecordId = c.Id,
                 time = c.Time,
                 patientId = p.Id,
                 patientName = p.Name,
@@ -105,6 +126,7 @@ public class OverviewController : ControllerBase
                   && c.Time < tomorrow
             select new
             {
+                clinicalRecordId = c.Id,
                 time = c.Time,
                 patientId = p.Id,
                 patientName = p.Name,
@@ -116,20 +138,42 @@ public class OverviewController : ControllerBase
 
         var rawData = await ncsQuery
             .Concat(ultrasoundQuery)
-            .OrderByDescending(x => x.time)
-            .ThenBy(x => x.patientId)
-            .ThenBy(x => x.examType)
             .ToListAsync();
 
-        var data = rawData.Select(x => new
-        {
-            time = x.time.ToString("HH:mm"),
-            patientId = x.patientId,
-            patientName = x.patientName,
-            examType = x.examType,
-            status = FormatStatus(x.status),
-            handText = x.handText
-        });
+        var data = rawData
+            .GroupBy(x => new
+            {
+                x.clinicalRecordId,
+                x.time,
+                x.patientId,
+                x.patientName
+            })
+            .OrderByDescending(g => g.Key.time)
+            .ThenBy(g => g.Key.patientId)
+            .Select(g =>
+            {
+                var ncs = g.FirstOrDefault(x => x.examType == "NCS");
+                var ultrasound = g.FirstOrDefault(x => x.examType == "Siêu âm");
+
+                var formattedStatuses = g
+                    .Select(x => FormatStatus(x.status))
+                    .ToList();
+
+                return new
+                {
+                    clinicalRecordId = g.Key.clinicalRecordId,
+                    time = g.Key.time.ToString("HH:mm"),
+                    patientId = g.Key.patientId,
+                    patientCode = $"BN{g.Key.patientId:D5}",
+                    patientName = g.Key.patientName,
+
+                    ncs = ncs?.handText,
+                    ultrasound = ultrasound?.handText,
+
+                    status = GetOverallSessionStatus(formattedStatuses)
+                };
+            })
+            .ToList();
 
         return Ok(data);
     }
