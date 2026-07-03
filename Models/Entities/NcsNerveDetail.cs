@@ -23,6 +23,8 @@ public class NcsNerveDetail
     public int? NerveType { get; set; }
     [Column("finger_index")]
     public int? FingerIndex { get; set; }
+    [Column("confirm")]
+    public bool? Confirm { get; set; }
     [ForeignKey(nameof(NcsResultId))]
     public NcsResult? NcsResult { get; set; }
     

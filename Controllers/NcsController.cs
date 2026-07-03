@@ -216,7 +216,7 @@ public class NcsController : ControllerBase
     }
     [HttpPost("calculate_motor_features")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> CalculateMotorFeatures([FromForm] double onset_x1, [FromForm] double peak_x1, [FromForm] double onset_x2, [FromForm] double peak_x2,[FromForm] String scaled_signal_url1,[FromForm] String scaled_signal_url2)
+    public async Task<IActionResult> CalculateMotorFeatures([FromForm] double onset_x1, [FromForm] double peak_x1, [FromForm] double onset_x2, [FromForm] double peak_x2, [FromForm] String scaled_signal_url1, [FromForm] String scaled_signal_url2)
     {
 
         if (peak_x1 < onset_x1 || peak_x2 < onset_x2)
@@ -819,73 +819,31 @@ public class NcsController : ControllerBase
             status = ncsResultStatus
         });
 
-
     }
 
-    [HttpPost("saveNcsNerveValues")]
-    public async Task<IActionResult> SaveNcsNerveValues(
-    [FromBody] SaveNcsNerveValuesDto request)
+    [HttpPost("confirm")]
+    public async Task<IActionResult> Confirm([FromForm] int ncsNerveDetailId)
     {
-        if (request.NcsNerveDetailId <= 0)
+
+        if (ncsNerveDetailId <= 0)
         {
-            return BadRequest("Thiếu ncsNerveDetailId.");
+            return BadRequest("missing nerve code.");
+        }
+       
+        var ncsNerveDetail = await _context.NcsNerveDetails
+       .FirstOrDefaultAsync(x => x.Id == ncsNerveDetailId);
+
+        if (ncsNerveDetail == null)
+        {
+            return NotFound("nerve detail not found.");
         }
 
-        if (request.Values == null || request.Values.Count == 0)
-        {
-            return BadRequest("Thiếu danh sách feature values.");
-        }
-
-        var detailExists = await _context.NcsNerveDetails
-            .AnyAsync(x => x.Id == request.NcsNerveDetailId);
-
-        if (!detailExists)
-        {
-            return NotFound("Không tìm thấy ncs_nerve_detail.");
-        }
-
-        var featureIds = request.Values
-            .Select(x => x.NcsFeatureId)
-            .Distinct()
-            .ToList();
-
-        var validFeatureIds = await _context.NcsFeatures
-            .Where(x => featureIds.Contains(x.Id))
-            .Select(x => x.Id)
-            .ToListAsync();
-
-        var invalidFeatureIds = featureIds
-            .Where(id => !validFeatureIds.Contains(id))
-            .ToList();
-
-        if (invalidFeatureIds.Count > 0)
-        {
-            return BadRequest(new
-            {
-                message = "Có ncs_feature_id không tồn tại.",
-                invalidFeatureIds
-            });
-        }
-
-        var rows = request.Values
-            .Where(x => x.NcsFeatureId > 0)
-            .Select(x => new NcsNerveValue
-            {
-                NcsNerveDetailId = request.NcsNerveDetailId,
-                NcsFeatureId = x.NcsFeatureId,
-                Value = x.Value
-            })
-            .ToList();
-
-        _context.NcsNerveValues.AddRange(rows);
-
+        ncsNerveDetail.Confirm = true;
         await _context.SaveChangesAsync();
+        return Ok("confirm succesully");
 
-        return Ok(new
-        {
-            message = "Lưu ncs_nerve_value thành công.",
-            count = rows.Count
-        });
     }
+
+
 
 }
