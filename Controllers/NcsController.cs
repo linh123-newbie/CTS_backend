@@ -78,6 +78,7 @@ public class NcsController : ControllerBase
                 id = n.Id,
                 label = n.AiLabel,
                 confidence = n.AiConfidence,
+                Confirm = n.Confirm
             })
             .ToListAsync();
 
