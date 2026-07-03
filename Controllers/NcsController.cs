@@ -153,7 +153,7 @@ public class NcsController : ControllerBase
     }
     [HttpPost("calculate_features")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> CalculateFeatures([FromQuery] double distance, [FromForm] double onset_x, [FromForm] double peak_x, IFormFile file)
+    public async Task<IActionResult> CalculateFeatures([FromQuery] double distance, [FromForm] double onset_x, [FromForm] double peak_x, string scaled_signal_url)
     {
         if (distance <= 0)
         {
@@ -164,33 +164,27 @@ public class NcsController : ControllerBase
             return BadRequest("Peak phải lớn hơn onset.");
         }
 
-        if (file == null || file.Length == 0)
+        if (string.IsNullOrWhiteSpace(scaled_signal_url))
         {
-            return BadRequest("Vui lòng chọn file txt.");
+            return BadRequest("Lỗi đọc file txt.");
         }
 
-        var extension = Path.GetExtension(file.FileName).ToLower();
+        var extension = Path.GetExtension(scaled_signal_url).ToLower();
 
         if (extension != ".txt")
         {
-            return BadRequest("Chỉ cho phép upload file .txt.");
+            return BadRequest("Phải trỏ tới file txt.");
         }
 
         using var formData = new MultipartFormDataContent();
 
-        await using var fileStream = file.OpenReadStream();
-        using var fileContent = new StreamContent(fileStream);
-
-        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
-
-        formData.Add(fileContent, "file", file.FileName);
         var markersJson = JsonSerializer.Serialize(new
         {
             onset_x,
             peak_x
         });
-
-        formData.Add(new StringContent(markersJson), "markers");
+        formData.Add(new StringContent(markersJson, Encoding.UTF8, "application/json"), "markers");
+        formData.Add(new StringContent(scaled_signal_url, Encoding.UTF8), "scaled_signal_url");
         var distanceText = distance.ToString(CultureInfo.InvariantCulture);
 
         var response = await _waveformClient.PostAsync(
@@ -222,7 +216,7 @@ public class NcsController : ControllerBase
     }
     [HttpPost("calculate_motor_features")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> CalculateMotorFeatures([FromForm] double onset_x1, [FromForm] double peak_x1, [FromForm] double onset_x2, [FromForm] double peak_x2, IFormFile file1, IFormFile file2)
+    public async Task<IActionResult> CalculateMotorFeatures([FromForm] double onset_x1, [FromForm] double peak_x1, [FromForm] double onset_x2, [FromForm] double peak_x2,[FromForm] String scaled_signal_url1,[FromForm] String scaled_signal_url2)
     {
 
         if (peak_x1 < onset_x1 || peak_x2 < onset_x2)
@@ -231,17 +225,13 @@ public class NcsController : ControllerBase
         }
 
 
-        if (file1 == null || file1.Length == 0)
+        if (string.IsNullOrWhiteSpace(scaled_signal_url1) || string.IsNullOrWhiteSpace(scaled_signal_url2))
         {
-            return BadRequest("Vui lòng chọn file txt.");
-        }
-        if (file2 == null || file2.Length == 0)
-        {
-            return BadRequest("Vui lòng chọn file txt.");
+            return BadRequest("Lỗi đọc file txt.");
         }
 
-        var extension1 = Path.GetExtension(file1.FileName).ToLower();
-        var extension2 = Path.GetExtension(file2.FileName).ToLower();
+        var extension1 = Path.GetExtension(scaled_signal_url1).ToLower();
+        var extension2 = Path.GetExtension(scaled_signal_url2).ToLower();
 
         if (extension1 != ".txt" || extension2 != ".txt")
         {
@@ -250,16 +240,7 @@ public class NcsController : ControllerBase
 
         using var formData = new MultipartFormDataContent();
 
-        await using var fileStream1 = file1.OpenReadStream();
-        await using var fileStream2 = file2.OpenReadStream();
-        using var fileContent1 = new StreamContent(fileStream1);
-        using var fileContent2 = new StreamContent(fileStream2);
 
-        fileContent1.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
-        fileContent2.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
-
-        formData.Add(fileContent1, "file1", file1.FileName);
-        formData.Add(fileContent2, "file2", file2.FileName);
         var markersJson1 = JsonSerializer.Serialize(new
         {
             onset_x = onset_x1,
@@ -273,6 +254,8 @@ public class NcsController : ControllerBase
 
         formData.Add(new StringContent(markersJson1), "markers1");
         formData.Add(new StringContent(markersJson2), "markers2");
+        formData.Add(new StringContent(scaled_signal_url1, Encoding.UTF8), "scaled_signal_url1");
+        formData.Add(new StringContent(scaled_signal_url2, Encoding.UTF8), "scaled_signal_url2");
 
         var response = await _waveformClient.PostAsync($"calculate_motor_features", formData);
 
