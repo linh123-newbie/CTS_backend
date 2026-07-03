@@ -7,6 +7,9 @@ using System.Text.Json;
 using System.Globalization;
 using CTS_backend.Models;
 using System.Text;
+using Amazon.S3.Model;
+using Npgsql.EntityFrameworkCore.PostgreSQL.ValueGeneration.Internal;
+using Npgsql.Internal;
 
 
 namespace CTS_backend.Controllers;
@@ -58,6 +61,50 @@ public class NcsController : ControllerBase
 
         return Ok(data);
     }
+
+    [HttpGet("getDetailNerve")]
+    public async Task<ActionResult> GetNerveDetail([FromQuery] int ncsNerveDetailId)
+    {
+
+        if (ncsNerveDetailId <= 0)
+        {
+            return BadRequest("Missing Id.");
+        }
+
+        var label = await _context.NcsNerveDetails
+            .Where(n => n.Id == ncsNerveDetailId)
+            .Select(n => new
+            {
+                id = n.Id,
+                label = n.AiLabel,
+                confidence = n.AiConfidence,
+            })
+            .ToListAsync();
+
+        var signals = await _context.NcsNerveDetails
+            .Where(n => n.Id == ncsNerveDetailId)
+            .Join(_context.NcsSignalFiles, nn => nn.Id, ns => ns.NcsNerveDetailId, (nn, ns) => new
+            {
+                file_path = ns.FilePath
+            }).ToListAsync();
+
+        var features = from nn in _context.NcsNerveDetails 
+                    join nsv in _context.NcsNerveValues on nn.Id equals nsv.NcsNerveDetailId
+                    join feature in _context.NcsFeatures on nsv.NcsFeatureId equals feature.Id
+                    where nn.Id == ncsNerveDetailId
+                    select new
+                    {
+                        Name = feature.Name,
+                        Value = nsv.Value,
+                        Unit = feature.Unit
+                    };
+        var data = new {
+            label, signals, features
+        };
+
+        return Ok(data);
+    }
+
     [HttpGet("getSignalResults")]
     public async Task<ActionResult> GetSignalResults([FromQuery] int ncsResultId, [FromQuery] string measurementType)
     {
@@ -829,7 +876,7 @@ public class NcsController : ControllerBase
         {
             return BadRequest("missing nerve code.");
         }
-       
+
         var ncsNerveDetail = await _context.NcsNerveDetails
        .FirstOrDefaultAsync(x => x.Id == ncsNerveDetailId);
 
