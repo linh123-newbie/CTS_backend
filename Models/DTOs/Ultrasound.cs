@@ -19,6 +19,12 @@ public class UltrasoundSegmentResponse
 
     [JsonPropertyName("csa_mm2")]
     public double? CsaMm2 { get; set; }
+    [JsonPropertyName("perimeter")]
+    public double? Perimeter { get; set; }
+    [JsonPropertyName("flattening_ratio")]
+    public double? FlatteningRatio { get; set; }
+    [JsonPropertyName("circularity")]
+    public double? Circularity { get; set; }
 
     [JsonPropertyName("contour_points")]
     public List<UltrasoundContourPointResponse>? ContourPoints { get; set; }

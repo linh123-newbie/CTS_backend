@@ -27,6 +27,12 @@ public class PythonCalCsaResponse
 {
     [JsonPropertyName("csa_mm2")]
     public double CsaMm2 { get; set; }
+    [JsonPropertyName("perimeter")]
+    public double Perimeter { get; set; }
+    [JsonPropertyName("flattening_ratio")]
+    public double FlatteningRatio { get; set; }
+    [JsonPropertyName("circularity")]
+    public double Circularity { get; set; }
 
     [JsonPropertyName("pred_mask_url")]
     public string? PredMaskUrl { get; set; }

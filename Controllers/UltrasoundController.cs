@@ -104,6 +104,9 @@ public class UltrasoundController : ControllerBase
         ultrasoundResult.ImageUrl = segmentResult.OriginalUrl ?? "";
         ultrasoundResult.MaskUrl = segmentResult.PredMaskUrl ?? "";
         ultrasoundResult.Csa = segmentResult.CsaMm2;
+        ultrasoundResult.Perimeter = segmentResult.Perimeter;
+        ultrasoundResult.FlatteningRatio = segmentResult.FlatteningRatio;
+        ultrasoundResult.Circularity = segmentResult.Circularity;
 
         // Nếu Status là string:
         ultrasoundResult.Status = "SEGMENTED";
@@ -120,6 +123,9 @@ public class UltrasoundController : ControllerBase
             predMaskUrl = segmentResult.PredMaskUrl,
             markedUrl = segmentResult.MarkedUrl,
             csaMm2 = segmentResult.CsaMm2,
+            perimeter = segmentResult.Perimeter,
+            flatteningRatio = segmentResult.FlatteningRatio,
+            circularity = segmentResult.Circularity,
             status = ultrasoundResult.Status,
             contourPoints = segmentResult.ContourPoints ?? new List<UltrasoundContourPointResponse>(),
         });
@@ -130,7 +136,10 @@ public class UltrasoundController : ControllerBase
         [FromQuery] int ultrasoundResultId,
         [FromQuery] string originalUrl,
         [FromQuery] string predMaskUrl,
-        [FromQuery] double csaMm2
+        [FromQuery] double csaMm2,
+        [FromQuery] double perimeter,
+        [FromQuery] double flatteningRatio,
+        [FromQuery] double circularity
     )
     {
         var ultrasoundResult = await _context.UltrasoundResults
@@ -150,7 +159,10 @@ public class UltrasoundController : ControllerBase
             "result" +
             $"?originalUrl={Uri.EscapeDataString(originalUrl)}" +
             $"&predMaskUrl={Uri.EscapeDataString(predMaskUrl)}" +
-            $"&csaMm2={Uri.EscapeDataString(csaMm2.ToString(System.Globalization.CultureInfo.InvariantCulture))}";
+            $"&csaMm2={Uri.EscapeDataString(csaMm2.ToString(System.Globalization.CultureInfo.InvariantCulture))}" +
+            $"&perimeter={Uri.EscapeDataString(perimeter.ToString(System.Globalization.CultureInfo.InvariantCulture))}" +
+            $"&flattening_ratio={Uri.EscapeDataString(flatteningRatio.ToString(System.Globalization.CultureInfo.InvariantCulture))}" +
+            $"&circularity={Uri.EscapeDataString(circularity.ToString(System.Globalization.CultureInfo.InvariantCulture))}";
 
         HttpResponseMessage pythonResponse;
 
@@ -201,6 +213,9 @@ public class UltrasoundController : ControllerBase
         ultrasoundResult.ImageUrl = originalUrl;
         ultrasoundResult.MaskUrl = predMaskUrl;
         ultrasoundResult.Csa = csaMm2;
+        ultrasoundResult.Perimeter = perimeter ;
+        ultrasoundResult.FlatteningRatio = flatteningRatio;
+        ultrasoundResult.Circularity = circularity;
         ultrasoundResult.Label = finalLabel;
         ultrasoundResult.Status = "CONFIRM";
 
@@ -214,6 +229,9 @@ public class UltrasoundController : ControllerBase
             imageUrl = ultrasoundResult.ImageUrl,
             maskUrl = ultrasoundResult.MaskUrl,
             csa = ultrasoundResult.Csa,
+            perimeter  = ultrasoundResult.Perimeter,
+            flatteningRatio  = ultrasoundResult.FlatteningRatio,
+            circularity  = ultrasoundResult.Circularity,
 
             label = finalLabel,
             confidence = finalConfidence,
@@ -310,6 +328,9 @@ public class UltrasoundController : ControllerBase
         }
 
         ultrasoundResult.Csa = calCsaResult.CsaMm2;
+        ultrasoundResult.Perimeter = calCsaResult.Perimeter;
+        ultrasoundResult.FlatteningRatio = calCsaResult.FlatteningRatio;
+        ultrasoundResult.Circularity = calCsaResult.Circularity;
         ultrasoundResult.MaskUrl = calCsaResult.PredMaskUrl;
         // ultrasoundResult.Status = "SEGMENTED";
 
@@ -320,6 +341,9 @@ public class UltrasoundController : ControllerBase
             // success = true,
             // ultrasoundResultId = ultrasoundResult.Id,
             csaMm2 = calCsaResult.CsaMm2,
+            perimeter  = calCsaResult.Perimeter,
+            flatteningRatio  = calCsaResult.FlatteningRatio,
+            circularity = calCsaResult.Circularity,
             pred_mask_url = calCsaResult.PredMaskUrl,
             // areaPx = calCsaResult.AreaPx,
             // status = ultrasoundResult.Status

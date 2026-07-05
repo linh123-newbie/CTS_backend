@@ -21,6 +21,12 @@ public class UltrasoundResult
     public String? Label { get; set; }
     [Column("csa")]
     public double? Csa { get; set; }
+    [Column("perimeter ")]
+    public double? Perimeter { get; set; }
+    [Column("flattening_ratio")]
+    public double? FlatteningRatio { get; set; }
+    [Column("circularity")]
+    public double? Circularity { get; set; }
     [Column("clinical_record_id")]
     public int ClinicalRecordId { get; set; }
     [Column("status")]
