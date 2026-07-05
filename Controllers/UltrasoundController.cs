@@ -243,7 +243,7 @@ public class UltrasoundController : ControllerBase
         });
     }
 
-    [HttpPost("cal_csa")]
+    [HttpPost("cal_features")]
     public async Task<ActionResult> CalCsa([FromBody] CalCsaRequest request)
     {
         if (request == null)
@@ -279,7 +279,7 @@ public class UltrasoundController : ControllerBase
 
         try
         {
-            pythonResponse = await client.PostAsJsonAsync("cal_csa", new
+            pythonResponse = await client.PostAsJsonAsync("cal_features", new
             {
                 originalUrl = ultrasoundResult.ImageUrl,
                 contours = request.Contours.Select(point => new
@@ -294,7 +294,7 @@ public class UltrasoundController : ControllerBase
         {
             return StatusCode(500, new
             {
-                message = "Không gọi được API cal_csa bên Python.",
+                message = "Không gọi được API cal_features bên Python.",
                 error = ex.Message
             });
         }
@@ -305,7 +305,7 @@ public class UltrasoundController : ControllerBase
         {
             return StatusCode((int)pythonResponse.StatusCode, new
             {
-                message = "Python API cal_csa trả lỗi.",
+                message = "Python API cal_features trả lỗi.",
                 detail = json
             });
         }
@@ -322,7 +322,7 @@ public class UltrasoundController : ControllerBase
         {
             return StatusCode(500, new
             {
-                message = "Không parse được response từ Python cal_csa.",
+                message = "Không parse được response từ Python cal_features.",
                 raw = json
             });
         }
