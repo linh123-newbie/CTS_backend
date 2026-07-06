@@ -79,7 +79,7 @@ public class NcsController : ControllerBase
                 label = n.AiLabel,
                 confidence = n.AiConfidence,
                 Confirm = n.Confirm,
-                
+
             })
             .ToListAsync();
 
@@ -90,18 +90,21 @@ public class NcsController : ControllerBase
                 file_path = ns.FilePath
             }).ToListAsync();
 
-        var features = from nn in _context.NcsNerveDetails 
-                    join nsv in _context.NcsNerveValues on nn.Id equals nsv.NcsNerveDetailId
-                    join feature in _context.NcsFeatures on nsv.NcsFeatureId equals feature.Id
-                    where nn.Id == ncsNerveDetailId
-                    select new
-                    {
-                        Name = feature.Name,
-                        Value = nsv.Value,
-                        Unit = feature.Unit
-                    };
-        var data = new {
-            label, signals, features
+        var features = from nn in _context.NcsNerveDetails
+                       join nsv in _context.NcsNerveValues on nn.Id equals nsv.NcsNerveDetailId
+                       join feature in _context.NcsFeatures on nsv.NcsFeatureId equals feature.Id
+                       where nn.Id == ncsNerveDetailId
+                       select new
+                       {
+                           Name = feature.Name,
+                           Value = nsv.Value,
+                           Unit = feature.Unit
+                       };
+        var data = new
+        {
+            label,
+            signals,
+            features
         };
 
         return Ok(data);
@@ -370,6 +373,25 @@ public class NcsController : ControllerBase
         else
         {
             ncsResult.Status = "Chưa xử lý";
+        }
+        await _context.SaveChangesAsync();
+
+        var hasSensoryDone = await _context.NcsNerveDetails
+       .AnyAsync(x =>
+           x.NcsResultId == ncsResultId &&
+           x.MeasurementType != null &&
+           x.MeasurementType.ToLower() == "sensory" &&
+           x.Confirm == true);
+
+        var hasMotorDone = await _context.NcsNerveDetails
+            .AnyAsync(x =>
+                x.NcsResultId == ncsResultId &&
+                x.MeasurementType != null &&
+                x.MeasurementType.ToLower() == "motor" &&
+                x.Confirm == true);
+        if (hasSensoryDone && hasMotorDone)
+        {
+            ncsResult.Status = "Đã xử lí";
         }
         await _context.SaveChangesAsync();
 
