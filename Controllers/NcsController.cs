@@ -596,14 +596,12 @@ public class NcsController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
-        var ncsResultStatus = await UpdateNcsResultStatusIfBothPredictedAsync(request.NcsResultId);
 
         return Ok(new
         {
             prediction = predictResult,
             ncsNerveDetailId = ncsNerveDetail.Id,
             savedFeatureValueCount = rows.Count,
-            status = ncsResultStatus
         });
     }
 
@@ -910,6 +908,10 @@ public class NcsController : ControllerBase
 
         ncsNerveDetail.Confirm = true;
         await _context.SaveChangesAsync();
+
+        var ncsResultStatus = await UpdateNcsResultStatusIfBothPredictedAsync(ncsNerveDetail.NcsResultId);
+
+
         return Ok("confirm succesully");
 
     }
