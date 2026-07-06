@@ -2,12 +2,15 @@ using System.Text.Json.Serialization;
 
 namespace CTS_backend.Models.DTOs;
 
+using System.Text.Json.Serialization;
 public class NcsFeatureResponse
 {
     [JsonPropertyName("filename")]
     public string? Filename { get; set; }
     [JsonPropertyName("scaled_signal_url")]
     public string? ScaledSignal { get; set; }
+    [JsonPropertyName("signal_values")]
+    public List<double> SignalValues { get; set; } = new();
     [JsonPropertyName("ncsNerveDetailId")]
     public int NcsNerveDetailId { get; set; }
 
