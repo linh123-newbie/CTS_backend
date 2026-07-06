@@ -361,8 +361,25 @@ public class NcsController : ControllerBase
                 x.MeasurementType.ToLower() == "motor" &&
                 x.AiLabel != null);
 
+        var hasSensoryDone = await _context.NcsNerveDetails
+            .AnyAsync(x =>
+                x.NcsResultId == ncsResultId &&
+                x.MeasurementType != null &&
+                x.MeasurementType.ToLower() == "sensory" &&
+                x.Confirm == true);
 
-        if (hasSensory && hasMotor)
+        var hasMotorDone = await _context.NcsNerveDetails
+            .AnyAsync(x =>
+                x.NcsResultId == ncsResultId &&
+                x.MeasurementType != null &&
+                x.MeasurementType.ToLower() == "motor" &&
+                x.Confirm == true);
+
+        if (hasSensoryDone && hasMotorDone)
+        {
+            ncsResult.Status = "Đã xử lí";
+        }
+        else if (hasSensory && hasMotor)
         {
             ncsResult.Status = "CONFIRM";
         }
@@ -374,25 +391,7 @@ public class NcsController : ControllerBase
         {
             ncsResult.Status = "Chưa xử lý";
         }
-        await _context.SaveChangesAsync();
 
-        var hasSensoryDone = await _context.NcsNerveDetails
-       .AnyAsync(x =>
-           x.NcsResultId == ncsResultId &&
-           x.MeasurementType != null &&
-           x.MeasurementType.ToLower() == "sensory" &&
-           x.Confirm == true);
-
-        var hasMotorDone = await _context.NcsNerveDetails
-            .AnyAsync(x =>
-                x.NcsResultId == ncsResultId &&
-                x.MeasurementType != null &&
-                x.MeasurementType.ToLower() == "motor" &&
-                x.Confirm == true);
-        if (hasSensoryDone && hasMotorDone)
-        {
-            ncsResult.Status = "Đã xử lí";
-        }
         await _context.SaveChangesAsync();
 
         return ncsResult.Status;
