@@ -31,52 +31,52 @@ public class NcsController : ControllerBase
     }
 
     private async Task<List<double>> ReadSignalValuesFromUrlAsync(string? signalUrl)
-{
-    if (string.IsNullOrWhiteSpace(signalUrl))
     {
-        return new List<double>();
-    }
+        if (string.IsNullOrWhiteSpace(signalUrl))
+        {
+            return new List<double>();
+        }
 
-    if (!Uri.TryCreate(signalUrl, UriKind.Absolute, out var uri))
-    {
-        return new List<double>();
-    }
+        if (!Uri.TryCreate(signalUrl, UriKind.Absolute, out var uri))
+        {
+            return new List<double>();
+        }
 
-    if (
-        uri.Scheme != "https" ||
-        uri.Host != "txt-signals.s3.ap-southeast-2.amazonaws.com" ||
-        !uri.AbsolutePath.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)
-    )
-    {
-        return new List<double>();
-    }
-
-    var httpClient = _httpClientFactory.CreateClient();
-
-    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-
-    var text = await httpClient.GetStringAsync(uri, cts.Token);
-
-    var values = new List<double>();
-
-    foreach (var part in text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
-    {
         if (
-            double.TryParse(
-                part,
-                NumberStyles.Any,
-                CultureInfo.InvariantCulture,
-                out var value
-            ) &&
-            double.IsFinite(value)
+            uri.Scheme != "https" ||
+            uri.Host != "txt-signals.s3.ap-southeast-2.amazonaws.com" ||
+            !uri.AbsolutePath.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)
         )
         {
-            values.Add(value);
+            return new List<double>();
         }
-    }
 
-    return values;
-}
+        var httpClient = _httpClientFactory.CreateClient();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+
+        var text = await httpClient.GetStringAsync(uri, cts.Token);
+
+        var values = new List<double>();
+
+        foreach (var part in text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (
+                double.TryParse(
+                    part,
+                    NumberStyles.Any,
+                    CultureInfo.InvariantCulture,
+                    out var value
+                ) &&
+                double.IsFinite(value)
+            )
+            {
+                values.Add(value);
+            }
+        }
+
+        return values;
+    }
 
     [HttpGet("getNcsResults")]
     public async Task<ActionResult> GetNcsResults(
@@ -730,6 +730,9 @@ public class NcsController : ControllerBase
         await _context.SaveChangesAsync();
 
         result.NcsNerveDetailId = ncsNerveDetail.Id;
+
+        result.A1SignalValues = await ReadSignalValuesFromUrlAsync(result.A1SignalUrl);
+        result.A2SignalValues = await ReadSignalValuesFromUrlAsync(result.A2SignalUrl);
 
         return Ok(result);
     }

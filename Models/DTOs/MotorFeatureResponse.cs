@@ -12,7 +12,6 @@ public class MotorFeatureResponse
 
     [JsonPropertyName("markers2")]
     public MotorMarker? Markers2 { get; set; }
-
     [JsonPropertyName("a1_signal_url")]
     public string? A1SignalUrl { get; set; }
     [JsonPropertyName("a2_signal_url")]
@@ -22,6 +21,11 @@ public class MotorFeatureResponse
     public MotorFeatures? Features { get; set; }
     [JsonPropertyName("ncsNerveDetail")]
     public int? NcsNerveDetailId { get; set; }
+    [JsonPropertyName("a1_signal_values")]
+    public List<double> A1SignalValues { get; set; } = new();
+
+    [JsonPropertyName("a2_signal_values")]
+    public List<double> A2SignalValues { get; set; } = new();
 }
 
 public class MotorMarker
