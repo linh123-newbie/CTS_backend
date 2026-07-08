@@ -133,12 +133,37 @@ public class NcsController : ControllerBase
             })
             .ToListAsync();
 
-        var signals = await _context.NcsNerveDetails
-            .Where(n => n.Id == ncsNerveDetailId)
-            .Join(_context.NcsSignalFiles, nn => nn.Id, ns => ns.NcsNerveDetailId, (nn, ns) => new
+        var signalFiles = await _context.NcsNerveDetails
+    .Where(n => n.Id == ncsNerveDetailId)
+    .Join(
+        _context.NcsSignalFiles,
+        nn => nn.Id,
+        ns => ns.NcsNerveDetailId,
+        (nn, ns) => new
+        {
+            site = ns.Site,
+            file_path = ns.FilePath
+        }
+    )
+    .ToListAsync();
+
+        var signals = new List<object>();
+
+        foreach (var signal in signalFiles
+            .OrderBy(x =>
+                x.site == "wrist" ? 0 :
+                x.site == "elbow" ? 1 :
+                x.site == "sensory" ? 0 :
+                2
+            ))
+        {
+            signals.Add(new
             {
-                file_path = ns.FilePath
-            }).ToListAsync();
+                site = signal.site,
+                file_path = signal.file_path,
+                signal_values = await ReadSignalValuesFromUrlAsync(signal.file_path)
+            });
+        }
 
         var features = from nn in _context.NcsNerveDetails
                        join nsv in _context.NcsNerveValues on nn.Id equals nsv.NcsNerveDetailId
