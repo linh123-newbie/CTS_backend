@@ -1379,7 +1379,7 @@ public class NcsController : ControllerBase
         {
             return (
                 "Giảm",
-                "Biên độ vận động khi kích thích tại khuỷu tay thấp hơn ngưỡng chuẩn."
+                "Dòng điện bị nghẽn ở đoạn giữa khuỷu tay và cổ tay."
             );
         }
 
