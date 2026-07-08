@@ -645,7 +645,7 @@ public class NcsController : ControllerBase
                 confirmedMotor.AiConfidence
             );
 
-            ncsResult.Status = "Đã xử lí";
+            ncsResult.Status = "Đã xử lý";
             ncsResult.Label = summary.Label;
             ncsResult.Confidence = summary.Confidence;
         }
@@ -1452,7 +1452,7 @@ public class NcsController : ControllerBase
             return NotFound("Không tìm thấy kết quả NCS.");
         }
 
-        if (patient.ncsStatus != "Đã xử lí")
+        if (patient.ncsStatus != "Đã xử lý")
         {
             return Conflict(new
             {
