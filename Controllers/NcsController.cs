@@ -527,6 +527,70 @@ public class NcsController : ControllerBase
         return Ok(result);
     }
 
+    private async Task<string?> UpdateNcsResultStatusIfBothPredictedAsync(int? ncsResultId)
+    {
+        if (ncsResultId == null || ncsResultId <= 0)
+        {
+            return null;
+        }
+
+        var ncsResult = await _context.NcsResults
+            .FirstOrDefaultAsync(x => x.Id == ncsResultId);
+
+        if (ncsResult == null)
+        {
+            return null;
+        }
+
+        var hasSensory = await _context.NcsNerveDetails
+            .AnyAsync(x =>
+                x.NcsResultId == ncsResultId &&
+                x.MeasurementType != null &&
+                x.MeasurementType.ToLower() == "sensory" &&
+                x.AiLabel != null);
+
+        var hasMotor = await _context.NcsNerveDetails
+            .AnyAsync(x =>
+                x.NcsResultId == ncsResultId &&
+                x.MeasurementType != null &&
+                x.MeasurementType.ToLower() == "motor" &&
+                x.AiLabel != null);
+
+        var hasSensoryDone = await _context.NcsNerveDetails
+            .AnyAsync(x =>
+                x.NcsResultId == ncsResultId &&
+                x.MeasurementType != null &&
+                x.MeasurementType.ToLower() == "sensory" &&
+                x.Confirm == true);
+
+        var hasMotorDone = await _context.NcsNerveDetails
+            .AnyAsync(x =>
+                x.NcsResultId == ncsResultId &&
+                x.MeasurementType != null &&
+                x.MeasurementType.ToLower() == "motor" &&
+                x.Confirm == true);
+
+        if (hasSensoryDone && hasMotorDone)
+        {
+            ncsResult.Status = "Đã xử lí";
+        }
+        else if (hasSensory && hasMotor)
+        {
+            ncsResult.Status = "CONFIRM";
+        }
+        else if (hasSensory || hasMotor)
+        {
+            ncsResult.Status = "PROCESSING";
+        }
+        else
+        {
+            ncsResult.Status = "Chưa xử lý";
+        }
+
+        await _context.SaveChangesAsync();
+
+        return ncsResult.Status;
+    }
 
     [HttpPost("predict")]
     [Consumes("multipart/form-data")]
@@ -1129,6 +1193,7 @@ public class NcsController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
+
         return Ok(new
         {
             prediction = predictResult,
@@ -1139,7 +1204,7 @@ public class NcsController : ControllerBase
     }
 
     [HttpGet("result")]
-    public async Task<IActionResult> Result([FromQuery] int ncsResultId)
+    public async Task<IActionResult> Result([FromBody] int ncsResultId)
     {
         var patient = from n in _context.NcsResults
                       join c in _context.ClinicalRecords on n.ClinicalRecordId equals c.Id
@@ -1178,164 +1243,37 @@ public class NcsController : ControllerBase
             .OrderByDescending(x => x.Id)
             .FirstOrDefault();
 
-        return Ok(new
-        {
-            patient,
-            nerveDetails
-        });
+       return Ok(new
+       {
+           patient
+       });
 
     }
-
-    private class NcsSummaryResult
+    [HttpPost("confirm")]
+    public async Task<IActionResult> Confirm([FromForm] int ncsNerveDetailId)
     {
-        public string? Label { get; set; }
-        public double? Confidence { get; set; }
-    }
 
-    private static int? GetNcsSeverityRank(string? label)
-    {
-        var key = label?.Trim().ToLower();
-
-        return key switch
+        if (ncsNerveDetailId <= 0)
         {
-            "bt" => 0,
-            "bình thường" => 0,
-            "binh thuong" => 0,
-
-            "nhe" => 1,
-            "nhẹ" => 1,
-
-            "tb" => 2,
-            "trung bình" => 2,
-            "trung binh" => 2,
-
-            "nang" => 3,
-            "nặng" => 3,
-
-            _ => null
-        };
-    }
-
-    private static NcsSummaryResult BuildNcsSummary(
-    string? sensoryLabel,
-    double? sensoryConfidence,
-    string? motorLabel,
-    double? motorConfidence
-)
-    {
-        var sensoryRank = GetNcsSeverityRank(sensoryLabel);
-        var motorRank = GetNcsSeverityRank(motorLabel);
-
-        if (sensoryRank == null || motorRank == null)
-        {
-            return new NcsSummaryResult
-            {
-                Label = null,
-                Confidence = null
-            };
+            return BadRequest("missing nerve code.");
         }
 
-        if (sensoryRank > motorRank)
+        var ncsNerveDetail = await _context.NcsNerveDetails
+       .FirstOrDefaultAsync(x => x.Id == ncsNerveDetailId);
+
+        if (ncsNerveDetail == null)
         {
-            return new NcsSummaryResult
-            {
-                Label = sensoryLabel,
-                Confidence = sensoryConfidence
-            };
+            return NotFound("nerve detail not found.");
         }
 
-        if (motorRank > sensoryRank)
-        {
-            return new NcsSummaryResult
-            {
-                Label = motorLabel,
-                Confidence = motorConfidence
-            };
-        }
-
-        return new NcsSummaryResult
-        {
-            Label = sensoryLabel,
-            Confidence =
-                sensoryConfidence.HasValue && motorConfidence.HasValue
-                    ? Math.Min(sensoryConfidence.Value, motorConfidence.Value)
-                    : sensoryConfidence ?? motorConfidence
-        };
-    }
-    private async Task<string?> UpdateNcsResultStatusIfBothPredictedAsync(int? ncsResultId)
-    {
-        if (ncsResultId == null || ncsResultId <= 0)
-        {
-            return null;
-        }
-
-        var ncsResult = await _context.NcsResults
-            .FirstOrDefaultAsync(x => x.Id == ncsResultId);
-
-        if (ncsResult == null)
-        {
-            return null;
-        }
-
-        var sensory = await _context.NcsNerveDetails
-            .Where(x =>
-                x.NcsResultId == ncsResultId &&
-                x.MeasurementType != null &&
-                x.MeasurementType.ToLower() == "sensory" &&
-                x.AiLabel != null)
-            .OrderByDescending(x => x.Id)
-            .FirstOrDefaultAsync();
-
-        var motor = await _context.NcsNerveDetails
-            .Where(x =>
-                x.NcsResultId == ncsResultId &&
-                x.MeasurementType != null &&
-                x.MeasurementType.ToLower() == "motor" &&
-                x.AiLabel != null)
-            .OrderByDescending(x => x.Id)
-            .FirstOrDefaultAsync();
-
-        var hasSensory = sensory != null;
-        var hasMotor = motor != null;
-
-        var hasSensoryDone = sensory?.Confirm == true;
-        var hasMotorDone = motor?.Confirm == true;
-
-        if (hasSensoryDone && hasMotorDone)
-        {
-            var summary = BuildNcsSummary(
-                sensory?.AiLabel,
-                sensory?.AiConfidence,
-                motor?.AiLabel,
-                motor?.AiConfidence
-            );
-
-            ncsResult.Status = "Đã xử lí";
-            ncsResult.Label = summary.Label;
-            ncsResult.Confidence = summary.Confidence;
-        }
-        else if (hasSensory && hasMotor)
-        {
-            ncsResult.Status = "CONFIRM";
-            ncsResult.Label = null;
-            ncsResult.Confidence = null;
-        }
-        else if (hasSensory || hasMotor)
-        {
-            ncsResult.Status = "PROCESSING";
-            ncsResult.Label = null;
-            ncsResult.Confidence = null;
-        }
-        else
-        {
-            ncsResult.Status = "Chưa xử lý";
-            ncsResult.Label = null;
-            ncsResult.Confidence = null;
-        }
-
+        ncsNerveDetail.Confirm = true;
         await _context.SaveChangesAsync();
 
-        return ncsResult.Status;
+        var ncsResultStatus = await UpdateNcsResultStatusIfBothPredictedAsync(ncsNerveDetail.NcsResultId);
+
+
+        return Ok("confirm succesully");
+
     }
 
 
