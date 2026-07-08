@@ -17,6 +17,8 @@ public class NcsResult
     public int? Hand { get; set; }
     [Column("label")]
     public String? Label { get; set; }
+    [Column("confidence")]
+    public double? Confidence { get; set; }
     [Column("status")]
     public String? Status { get; set; }
     [ForeignKey(nameof(ClinicalRecordId))]
