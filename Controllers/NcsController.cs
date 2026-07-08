@@ -202,6 +202,124 @@ public class NcsController : ControllerBase
         return Ok(data);
     }
 
+    private async Task<int> SaveSensoryFeatureValuesAsync(
+    int ncsNerveDetailId,
+    object? features
+)
+    {
+        if (ncsNerveDetailId <= 0 || features == null)
+        {
+            return 0;
+        }
+
+        var featureIdMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["onset_lat"] = 2,
+            ["peak_lat (ms)"] = 3,
+            ["hs (uV)"] = 4,
+            ["rise_time (ms)"] = 5,
+            ["as (uV.ms)"] = 6,
+            ["asa (uV.ms)"] = 7,
+            ["half_peak (ms)"] = 8,
+            ["upper_lower"] = 9,
+            ["left_right"] = 10,
+            ["left_slope (uV/ms)"] = 11,
+            ["right_slope (uV/ms)"] = 12,
+            ["cv (m/s)"] = 14
+        };
+
+        Dictionary<string, JsonElement>? featureDict;
+
+        try
+        {
+            var featuresJson = features is JsonElement jsonElement
+                ? jsonElement.GetRawText()
+                : JsonSerializer.Serialize(features);
+
+            featureDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                featuresJson,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }
+            );
+        }
+        catch
+        {
+            return 0;
+        }
+
+        if (featureDict == null || featureDict.Count == 0)
+        {
+            return 0;
+        }
+
+        var rows = new List<NcsNerveValue>();
+
+        foreach (var item in featureDict)
+        {
+            if (!featureIdMap.TryGetValue(item.Key, out var featureId))
+            {
+                continue;
+            }
+
+            double value;
+
+            if (item.Value.ValueKind == JsonValueKind.Number)
+            {
+                value = item.Value.GetDouble();
+            }
+            else if (
+                item.Value.ValueKind == JsonValueKind.String &&
+                double.TryParse(
+                    item.Value.GetString(),
+                    NumberStyles.Any,
+                    CultureInfo.InvariantCulture,
+                    out var parsedValue
+                )
+            )
+            {
+                value = parsedValue;
+            }
+            else
+            {
+                continue;
+            }
+
+            if (!double.IsFinite(value))
+            {
+                continue;
+            }
+
+            rows.Add(new NcsNerveValue
+            {
+                NcsNerveDetailId = ncsNerveDetailId,
+                NcsFeatureId = featureId,
+                Value = value
+            });
+        }
+
+        if (rows.Count == 0)
+        {
+            return 0;
+        }
+
+        var oldValues = await _context.NcsNerveValues
+            .Where(x => x.NcsNerveDetailId == ncsNerveDetailId)
+            .ToListAsync();
+
+        if (oldValues.Count > 0)
+        {
+            _context.NcsNerveValues.RemoveRange(oldValues);
+            await _context.SaveChangesAsync();
+        }
+
+        _context.NcsNerveValues.AddRange(rows);
+        await _context.SaveChangesAsync();
+
+        return rows.Count;
+    }
+
     [HttpPost("features")]
     public async Task<IActionResult> GetNcsFeatures([FromForm] NcsRequest request)
     {
@@ -275,6 +393,7 @@ public class NcsController : ControllerBase
 
         result.NcsNerveDetailId = ncsNerveDetail.Id;
         result.SignalValues = await ReadSignalValuesFromUrlAsync(result.ScaledSignal);
+        await SaveSensoryFeatureValuesAsync(ncsNerveDetail.Id, result.Features);
 
 
         return Ok(result);
