@@ -527,6 +527,73 @@ public class NcsController : ControllerBase
         return Ok(result);
     }
 
+    private class NcsSummaryResult
+    {
+        public string? Label { get; set; }
+        public double? Confidence { get; set; }
+    }
+
+    private static int? GetNcsSeverityRank(string? label)
+    {
+
+        return label switch
+        {
+            "bt" => 0,
+            "nhe" => 1,
+            "tb" => 2,
+            "nang" => 3,
+            _ => null
+        };
+    }
+
+    private static NcsSummaryResult BuildNcsSummary(
+        string? sensoryLabel,
+        double? sensoryConfidence,
+        string? motorLabel,
+        double? motorConfidence
+    )
+    {
+
+        var sensoryRank = GetNcsSeverityRank(sensoryLabel);
+        var motorRank = GetNcsSeverityRank(motorLabel);
+
+        if (sensoryRank == null || motorRank == null)
+        {
+            return new NcsSummaryResult
+            {
+                Label = null,
+                Confidence = null
+            };
+        }
+
+        if (sensoryRank > motorRank)
+        {
+            return new NcsSummaryResult
+            {
+                Label = sensoryLabel,
+                Confidence = sensoryConfidence
+            };
+        }
+
+        if (motorRank > sensoryRank)
+        {
+            return new NcsSummaryResult
+            {
+                Label = motorLabel,
+                Confidence = motorConfidence
+            };
+        }
+
+        return new NcsSummaryResult
+        {
+            Label = sensoryLabel,
+            Confidence =
+                sensoryConfidence.HasValue && motorConfidence.HasValue
+                    ? Math.Min(sensoryConfidence.Value, motorConfidence.Value)
+                    : sensoryConfidence ?? motorConfidence
+        };
+    }
+
     private async Task<string?> UpdateNcsResultStatusIfBothPredictedAsync(int? ncsResultId)
     {
         if (ncsResultId == null || ncsResultId <= 0)
@@ -542,49 +609,63 @@ public class NcsController : ControllerBase
             return null;
         }
 
-        var hasSensory = await _context.NcsNerveDetails
-            .AnyAsync(x =>
+        var details = await _context.NcsNerveDetails
+            .Where(x =>
                 x.NcsResultId == ncsResultId &&
                 x.MeasurementType != null &&
-                x.MeasurementType.ToLower() == "sensory" &&
-                x.AiLabel != null);
+                x.AiLabel != null)
+            .ToListAsync();
 
-        var hasMotor = await _context.NcsNerveDetails
-            .AnyAsync(x =>
-                x.NcsResultId == ncsResultId &&
-                x.MeasurementType != null &&
-                x.MeasurementType.ToLower() == "motor" &&
-                x.AiLabel != null);
+        var confirmedSensory = details
+            .Where(x =>
+                x.Confirm == true &&
+                x.MeasurementType!.ToLower() == "sensory")
+            .OrderByDescending(x => x.Id)
+            .FirstOrDefault();
 
-        var hasSensoryDone = await _context.NcsNerveDetails
-            .AnyAsync(x =>
-                x.NcsResultId == ncsResultId &&
-                x.MeasurementType != null &&
-                x.MeasurementType.ToLower() == "sensory" &&
-                x.Confirm == true);
+        var confirmedMotor = details
+            .Where(x =>
+                x.Confirm == true &&
+                x.MeasurementType!.ToLower() == "motor")
+            .OrderByDescending(x => x.Id)
+            .FirstOrDefault();
 
-        var hasMotorDone = await _context.NcsNerveDetails
-            .AnyAsync(x =>
-                x.NcsResultId == ncsResultId &&
-                x.MeasurementType != null &&
-                x.MeasurementType.ToLower() == "motor" &&
-                x.Confirm == true);
+        var hasSensory = details.Any(x =>
+            x.MeasurementType!.ToLower() == "sensory");
 
-        if (hasSensoryDone && hasMotorDone)
+        var hasMotor = details.Any(x =>
+            x.MeasurementType!.ToLower() == "motor");
+
+        if (confirmedSensory != null && confirmedMotor != null)
         {
+            var summary = BuildNcsSummary(
+                confirmedSensory.AiLabel,
+                confirmedSensory.AiConfidence,
+                confirmedMotor.AiLabel,
+                confirmedMotor.AiConfidence
+            );
+
             ncsResult.Status = "Đã xử lí";
+            ncsResult.Label = summary.Label;
+            ncsResult.Confidence = summary.Confidence;
         }
         else if (hasSensory && hasMotor)
         {
             ncsResult.Status = "CONFIRM";
+            ncsResult.Label = null;
+            ncsResult.Confidence = null;
         }
         else if (hasSensory || hasMotor)
         {
             ncsResult.Status = "PROCESSING";
+            ncsResult.Label = null;
+            ncsResult.Confidence = null;
         }
         else
         {
             ncsResult.Status = "Chưa xử lý";
+            ncsResult.Label = null;
+            ncsResult.Confidence = null;
         }
 
         await _context.SaveChangesAsync();
