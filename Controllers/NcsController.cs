@@ -1284,6 +1284,141 @@ public class NcsController : ControllerBase
 
     }
 
+    private static (string Status, string Evaluate) EvaluateNcsFeature(
+    string? featureName,
+    double? value,
+    double? normalMin,
+    double? normalMax,
+    double? wristAmp,
+    double? elbowAmp
+)
+    {
+        if (value == null)
+        {
+            return (
+                "Không có dữ liệu",
+                "Chưa có giá trị thực tế để đánh giá."
+            );
+        }
+
+        if (normalMin == null && normalMax == null)
+        {
+            return (
+                "Chưa có ngưỡng",
+                "Chưa có khoảng tham chiếu để đánh giá chỉ số này."
+            );
+        }
+
+        var name = featureName?.Trim().ToLower() ?? "";
+
+        var isSensoryAmplitude = name == "amplitude";
+        var isSensoryLatency = name == "onset latency";
+
+        var isMotorWristAmplitude = name == "hmd";
+        var isMotorWristLatency = name == "hmd takeoff";
+
+        var isMotorElbowAmplitude = name == "hmp";
+
+        var isBelowMin = normalMin != null && value < normalMin;
+        var isAboveMax = normalMax != null && value > normalMax;
+
+        if (!isBelowMin && !isAboveMax)
+        {
+            if (
+                isMotorElbowAmplitude &&
+                wristAmp != null &&
+                elbowAmp != null &&
+                elbowAmp < wristAmp * 0.8
+            )
+            {
+                return (
+                    "Giảm",
+                    "Biên độ khi kích thích tại khuỷu tay giảm hơn 20% so với cổ tay, nghẽn dẫn truyền đoạn giữa khuỷu tay và cổ tay."
+                );
+            }
+
+            return (
+                "Bình thường",
+                ""
+            );
+        }
+
+        if (isSensoryAmplitude && isBelowMin)
+        {
+            return (
+                "Giảm",
+                "Tổn thương trực tiếp vào các sợi trục cảm giác."
+            );
+        }
+
+        if (isSensoryLatency && isAboveMax)
+        {
+            return (
+                "Kéo dài",
+                "Tổn thương bao myelin của sợi cảm giác, khiến tín hiệu truyền đi bị chậm lại."
+            );
+        }
+
+        if (isMotorWristLatency && isAboveMax)
+        {
+            return (
+                "Kéo dài",
+                "Biểu hiện của tổn thương bao myelin đoạn xa."
+            );
+        }
+
+        if (isMotorWristAmplitude && isBelowMin)
+        {
+            return (
+                "Giảm",
+                "Mất các sợi trục vận động hoặc nghẽn dẫn truyền tại cổ tay."
+            );
+        }
+
+        if (isMotorElbowAmplitude && isBelowMin)
+        {
+            return (
+                "Giảm",
+                "Biên độ vận động khi kích thích tại khuỷu tay thấp hơn ngưỡng chuẩn."
+            );
+        }
+
+        if (isBelowMin)
+        {
+            return (
+                "Giảm",
+                "Giá trị thực tế thấp hơn ngưỡng chuẩn."
+            );
+        }
+
+        return (
+            "Kéo dài",
+            "Giá trị thực tế cao hơn ngưỡng chuẩn."
+        );
+    }
+
+    private static string FormatThreshold(double? normalMin, double? normalMax, string? unit)
+    {
+        var unitText = string.IsNullOrWhiteSpace(unit) ? "" : $" {unit}";
+
+        if (normalMin != null && normalMax != null)
+        {
+            return $"{normalMin} - {normalMax}{unitText}";
+        }
+
+        if (normalMin != null)
+        {
+            return $">= {normalMin}{unitText}";
+        }
+
+        if (normalMax != null)
+        {
+            return $"<= {normalMax}{unitText}";
+        }
+
+        return "Chưa có ngưỡng";
+    }
+
     [HttpGet("result")]
     public async Task<IActionResult> Result([FromQuery] int ncsResultId)
     {
@@ -1339,10 +1474,62 @@ public class NcsController : ControllerBase
             })
             .ToListAsync();
 
+        var rawReferenceValues = await (
+    from nn in _context.NcsNerveValues
+    join nf in _context.NcsFeatures on nn.NcsFeatureId equals nf.Id
+    join nd in _context.NcsNerveDetails on nn.NcsNerveDetailId equals nd.Id
+    join nr in _context.NcsReferenceRanges on nf.Id equals nr.NcsFeatureId
+    where nd.NcsResultId == ncsResultId
+          && nd.Confirm == true
+          && new[] { 2, 4, 16, 17, 18 }.Contains(nf.Id)
+    select new
+    {
+        featureId = nf.Id,
+        name = nf.Name,
+        unit = nf.Unit,
+        value = nn.Value,
+        normalMin = nr.NormalMin,
+        normalMax = nr.NormalMax
+    }
+).ToListAsync();
+
+        var wristAmp = rawReferenceValues
+    .FirstOrDefault(x => x.name == "HmD")
+    ?.value;
+
+        var elbowAmp = rawReferenceValues
+            .FirstOrDefault(x => x.name == "HmP")
+            ?.value;
+
+        var referenceValues = rawReferenceValues
+            .Select(x =>
+            {
+                var result = EvaluateNcsFeature(
+                    x.name,
+                    x.value,
+                    x.normalMin,
+                    x.normalMax,
+                    wristAmp,
+                    elbowAmp
+                );
+
+                return new
+                {
+                    name = x.name,
+                    unit = x.unit,
+                    value = x.value,
+                    threshold = FormatThreshold(x.normalMin, x.normalMax, x.unit),
+                    status = result.Status,
+                    evaluate = result.Evaluate
+                };
+            })
+            .ToList();
+
         return Ok(new
         {
             patient,
-            nerveDetails
+            nerveDetails,
+            referenceValues
         });
     }
 

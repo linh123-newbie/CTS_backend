@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<BctqAnswer> BctqAnswers { get; set; }
     public DbSet<NcsSignalFile> NcsSignalFiles { get; set; }
     public DbSet<NcsResult> NcsResults { get; set; }
+    public DbSet<NcsReferenceRange> NcsReferenceRanges { get; set; }
     public DbSet<NcsFeatures> NcsFeatures { get; set; }
     public DbSet<NcsNerveValue> NcsNerveValues { get; set; }
     public DbSet<NcsNerveDetail> NcsNerveDetails { get; set; }
@@ -42,6 +43,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<AssessmentSymptomArea>().ToTable("assessment_symptom_area");
         modelBuilder.Entity<Users>().ToTable("users");
         modelBuilder.Entity<NcsFeatures>().ToTable("ncs_features");
+        modelBuilder.Entity<NcsReferenceRange>().ToTable("ncs_reference_range");
         modelBuilder.Entity<NcsNerveValue>().ToTable("ncs_nerve_value");
         modelBuilder.Entity<NcsSignalFile>().ToTable("ncs_signal_file");
         modelBuilder.Entity<UltrasoundResult>().ToTable("ultrasound_result");
