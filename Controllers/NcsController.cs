@@ -800,6 +800,123 @@ public class NcsController : ControllerBase
         });
     }
 
+    private async Task<int> SaveMotorFeatureValuesAsync(
+    int ncsNerveDetailId,
+    object? features
+)
+    {
+        if (ncsNerveDetailId <= 0 || features == null)
+        {
+            return 0;
+        }
+
+        var featureIdMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["HmD"] = 16,
+            ["HmP"] = 17,
+            ["HmD_takeoff"] = 18,
+            ["HmP_takeoff"] = 19,
+            ["delta_takeoff"] = 20,
+            ["w_peak_lat"] = 21,
+            ["w_duration"] = 22,
+            ["w_left_slope"] = 23,
+            ["e_peak_lat"] = 24,
+            ["e_duration"] = 25,
+            ["e_left_slope"] = 26,
+        };
+
+        Dictionary<string, JsonElement>? featureDict;
+
+        try
+        {
+            var featuresJson = features is JsonElement jsonElement
+                ? jsonElement.GetRawText()
+                : JsonSerializer.Serialize(features);
+
+            featureDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                featuresJson,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }
+            );
+        }
+        catch
+        {
+            return 0;
+        }
+
+        if (featureDict == null || featureDict.Count == 0)
+        {
+            return 0;
+        }
+
+        var rows = new List<NcsNerveValue>();
+
+        foreach (var item in featureDict)
+        {
+            if (!featureIdMap.TryGetValue(item.Key, out var featureId))
+            {
+                continue;
+            }
+
+            double value;
+
+            if (item.Value.ValueKind == JsonValueKind.Number)
+            {
+                value = item.Value.GetDouble();
+            }
+            else if (
+                item.Value.ValueKind == JsonValueKind.String &&
+                double.TryParse(
+                    item.Value.GetString(),
+                    NumberStyles.Any,
+                    CultureInfo.InvariantCulture,
+                    out var parsedValue
+                )
+            )
+            {
+                value = parsedValue;
+            }
+            else
+            {
+                continue;
+            }
+
+            if (!double.IsFinite(value))
+            {
+                continue;
+            }
+
+            rows.Add(new NcsNerveValue
+            {
+                NcsNerveDetailId = ncsNerveDetailId,
+                NcsFeatureId = featureId,
+                Value = value
+            });
+        }
+
+        if (rows.Count == 0)
+        {
+            return 0;
+        }
+
+        var oldValues = await _context.NcsNerveValues
+            .Where(x => x.NcsNerveDetailId == ncsNerveDetailId)
+            .ToListAsync();
+
+        if (oldValues.Count > 0)
+        {
+            _context.NcsNerveValues.RemoveRange(oldValues);
+            await _context.SaveChangesAsync();
+        }
+
+        _context.NcsNerveValues.AddRange(rows);
+        await _context.SaveChangesAsync();
+
+        return rows.Count;
+    }
+
     [HttpPost("motor_features")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> GetMotorFeatures(NcsRequest request)
@@ -877,6 +994,7 @@ public class NcsController : ControllerBase
 
         result.A1SignalValues = await ReadSignalValuesFromUrlAsync(result.A1SignalUrl);
         result.A2SignalValues = await ReadSignalValuesFromUrlAsync(result.A2SignalUrl);
+        await SaveMotorFeatureValuesAsync(ncsNerveDetail.Id, result.Features);
 
         return Ok(result);
     }
