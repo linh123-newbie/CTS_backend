@@ -1204,51 +1204,67 @@ public class NcsController : ControllerBase
     }
 
     [HttpGet("result")]
-    public async Task<IActionResult> Result([FromBody] int ncsResultId)
+    public async Task<IActionResult> Result([FromQuery] int ncsResultId)
     {
-        var patient = from n in _context.NcsResults
-                      join c in _context.ClinicalRecords on n.ClinicalRecordId equals c.Id
-                      join p in _context.Patients on c.PatientId equals p.Id
-                      where n.Id == ncsResultId
-                      select new
-                      {
-                          p.Id,
-                          p.Name,
-                          c.Time,
-                          n.Hand,
-                          p.DateBirth
-                      };
+        if (ncsResultId <= 0)
+        {
+            return BadRequest("Thiếu mã kết quả NCS.");
+        }
+
+        var patient = await (
+            from n in _context.NcsResults
+            join c in _context.ClinicalRecords on n.ClinicalRecordId equals c.Id
+            join p in _context.Patients on c.PatientId equals p.Id
+            where n.Id == ncsResultId
+            select new
+            {
+                ncsResultId = n.Id,
+                patientId = p.Id,
+                patientName = p.Name,
+                clinicalTime = c.Time,
+                hand = n.Hand,
+                dateBirth = p.DateBirth,
+
+                ncsLabel = n.Label,
+                ncsConfidence = n.Confidence,
+                ncsStatus = n.Status
+            }
+        ).FirstOrDefaultAsync();
+
+        if (patient == null)
+        {
+            return NotFound("Không tìm thấy kết quả NCS.");
+        }
+
+        if (patient.ncsStatus != "Đã xử lí")
+        {
+            return Conflict(new
+            {
+                message = "Cần xác nhận kết quả NCS cảm giác và NCS vận động trước khi xem kết quả cuối.",
+                status = patient.ncsStatus
+            });
+        }
 
         var nerveDetails = await _context.NcsNerveDetails
-        .Where(x => x.NcsResultId == ncsResultId && x.Confirm == true)
-        .Select(x => new
+            .Where(x => x.NcsResultId == ncsResultId && x.Confirm == true)
+            .OrderBy(x => x.MeasurementType)
+            .Select(x => new
+            {
+                id = x.Id,
+                measurementType = x.MeasurementType,
+                label = x.AiLabel,
+                confidence = x.AiConfidence,
+                confirm = x.Confirm
+            })
+            .ToListAsync();
+
+        return Ok(new
         {
-            x.Id,
-            x.MeasurementType,
-            x.AiLabel,
-            x.AiConfidence,
-            x.Confirm
-        })
-        .ToListAsync();
-
-        var sensory = nerveDetails
-            .Where(x => x.MeasurementType != null &&
-                        x.MeasurementType.ToLower() == "sensory")
-            .OrderByDescending(x => x.Id)
-            .FirstOrDefault();
-
-        var motor = nerveDetails
-            .Where(x => x.MeasurementType != null &&
-                        x.MeasurementType.ToLower() == "motor")
-            .OrderByDescending(x => x.Id)
-            .FirstOrDefault();
-
-       return Ok(new
-       {
-           patient
-       });
-
+            patient,
+            nerveDetails
+        });
     }
+
     [HttpPost("confirm")]
     public async Task<IActionResult> Confirm([FromForm] int ncsNerveDetailId)
     {
