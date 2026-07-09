@@ -657,7 +657,7 @@ public class NcsController : ControllerBase
         }
         else if (hasSensory || hasMotor)
         {
-            ncsResult.Status = "PROCESSING";
+            ncsResult.Status = "Đang xử lý";
             ncsResult.Label = null;
             ncsResult.Confidence = null;
         }
@@ -1534,30 +1534,53 @@ public class NcsController : ControllerBase
     }
 
     [HttpPost("confirm")]
-    public async Task<IActionResult> Confirm([FromForm] int ncsNerveDetailId)
+    public async Task<IActionResult> Confirm([FromForm] int ncsNerveDetailId, [FromForm] bool confirm)
     {
-
         if (ncsNerveDetailId <= 0)
         {
-            return BadRequest("missing nerve code.");
+            return BadRequest("Missing nerve detail id.");
         }
 
         var ncsNerveDetail = await _context.NcsNerveDetails
-       .FirstOrDefaultAsync(x => x.Id == ncsNerveDetailId);
+            .FirstOrDefaultAsync(x => x.Id == ncsNerveDetailId);
 
         if (ncsNerveDetail == null)
         {
-            return NotFound("nerve detail not found.");
+            return NotFound("Nerve detail not found.");
         }
 
-        ncsNerveDetail.Confirm = true;
+        if (string.IsNullOrWhiteSpace(ncsNerveDetail.MeasurementType))
+        {
+            return BadRequest("Missing measurement type.");
+        }
+
+
+        if (confirm)
+        {
+            var sameGroupDetails = await _context.NcsNerveDetails
+                .Where(x =>
+                    x.NcsResultId == ncsNerveDetail.NcsResultId &&
+                    x.MeasurementType == ncsNerveDetail.MeasurementType)
+                .ToListAsync();
+
+            foreach (var detail in sameGroupDetails)
+            {
+                detail.Confirm = false;
+            }
+
+            ncsNerveDetail.Confirm = true;
+        }
+        else
+        {
+            ncsNerveDetail.Confirm = false;
+        }
+
         await _context.SaveChangesAsync();
 
-        var ncsResultStatus = await UpdateNcsResultStatusIfBothPredictedAsync(ncsNerveDetail.NcsResultId);
+        var ncsResultStatus =
+            await UpdateNcsResultStatusIfBothPredictedAsync(ncsNerveDetail.NcsResultId);
 
-
-        return Ok("confirm succesully");
-
+        return Ok("Confirm successfully.");
     }
 
 
