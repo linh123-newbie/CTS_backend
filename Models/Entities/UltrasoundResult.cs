@@ -29,6 +29,8 @@ public class UltrasoundResult
     public double? Circularity { get; set; }
     [Column("clinical_record_id")]
     public int ClinicalRecordId { get; set; }
+    [Column("confidence")]
+    public double Confidence { get; set; }
     [Column("status")]
     public String? Status { get; set; }
     [ForeignKey(nameof(ClinicalRecordId))]

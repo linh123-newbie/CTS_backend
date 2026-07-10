@@ -376,5 +376,34 @@ public class UltrasoundController : ControllerBase
             message = "ok."
         });
     }
+
+    [HttpGet("show")]
+    public async Task<IActionResult> Show([FromQuery] int ultrasoundResultId)
+    {
+        var ultrasound = await _context.UltrasoundResults
+            .FirstOrDefaultAsync(u => u.Id == ultrasoundResultId);
+
+        if (ultrasound == null)
+        {
+            return NotFound(new
+            {
+                message = "Display error."
+            });
+        }
+
+        return Ok(new
+        {
+            ultrasound.Id,
+            ultrasound.ImageUrl,
+            ultrasound.MaskUrl,
+            ultrasound.Csa,
+            ultrasound.Circularity,
+            ultrasound.FlatteningRatio,
+            ultrasound.Perimeter,
+            ultrasound.Label,
+            ultrasound.Confidence,
+            ultrasound.Status
+        });
+    }
 }
 
