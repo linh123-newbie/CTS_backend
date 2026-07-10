@@ -109,7 +109,7 @@ public class UltrasoundController : ControllerBase
         ultrasoundResult.Circularity = segmentResult.Circularity;
 
         // Nếu Status là string:
-        ultrasoundResult.Status = "Đang xử lí";
+        ultrasoundResult.Status = "Đang xử lý";
 
         // Nếu Status của bạn là int thì đổi thành:
         // ultrasoundResult.Status = 1;
