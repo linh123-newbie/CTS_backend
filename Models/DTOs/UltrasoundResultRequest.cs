@@ -7,5 +7,5 @@ public class UltrasoundResultRequest
     public double Perimeter { get; set; }
     public double FlatteningRatio { get; set; }
     public double Circularity { get; set; }
-    public List<ContourPoints> ContourPoints { get; set; } = [];
+    public List<ContourPoint> ContourPoints { get; set; } = [];
 }

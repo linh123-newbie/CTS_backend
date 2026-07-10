@@ -28,7 +28,7 @@ public class UltrasoundSegmentResponse
     public double? Circularity { get; set; }
 
     [JsonPropertyName("contour_points")]
-    public List<ContourPoints>? ContourPoints { get; set; }
+    public List<ContourPoint>? ContourPoints { get; set; }
 
     // [JsonPropertyName("image_prediction")]
     // public ImagePrediction? ImagePrediction { get; set; }

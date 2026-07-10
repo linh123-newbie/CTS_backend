@@ -8,7 +8,7 @@ public class CalCsaRequest
     public string? OriginalUrl { get; set; }
 
     [JsonPropertyName("contours")]
-    public List<ContourPoints> Contours { get; set; } = new();
+    public List<ContourPoint> Contours { get; set; } = new();
 }
 
 

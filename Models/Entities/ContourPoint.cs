@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
 
-public class ContourPoints
+public class ContourPoint
 {
     [JsonPropertyName("x")]
     public double X {get; set; }

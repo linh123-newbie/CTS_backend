@@ -1,5 +1,7 @@
 using CTS_backend.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using System.Text.Json;
 using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
@@ -11,8 +13,39 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException(
+        "not found connection string DefaultConnection."
+    );
+
+builder.Services.AddSingleton<NpgsqlDataSource>(_ =>
+{
+    var dataSourceBuilder =
+        new NpgsqlDataSourceBuilder(connectionString);
+
+    dataSourceBuilder.EnableDynamicJson();
+
+    // Lưu JSONB theo dạng x, y, kind thay vì X, Y, Kind
+    dataSourceBuilder.ConfigureJsonOptions(
+        new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true
+        }
+    );
+
+    return dataSourceBuilder.Build();
+});
+
+builder.Services.AddDbContext<AppDbContext>(
+    (serviceProvider, options) =>
+    {
+        var dataSource =
+            serviceProvider.GetRequiredService<NpgsqlDataSource>();
+
+        options.UseNpgsql(dataSource);
+    }
 );
 
 builder.Services.AddHttpClient("UltrasoundAi", client =>
