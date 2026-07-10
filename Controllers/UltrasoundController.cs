@@ -156,7 +156,7 @@ public class UltrasoundController : ControllerBase
             perimeter = request.Perimeter,
             flattening_ratio = request.FlatteningRatio,
             circularity = request.Circularity,
-            contour_points = request.ContourPoints
+            // contour_points = request.ContourPoints
         });
 
         var json = await response.Content.ReadAsStringAsync();
