@@ -8,20 +8,9 @@ public class CalCsaRequest
     public string? OriginalUrl { get; set; }
 
     [JsonPropertyName("contours")]
-    public List<UltrasoundContourPointRequest> Contours { get; set; } = new();
+    public List<ContourPoints> Contours { get; set; } = new();
 }
 
-public class UltrasoundContourPointRequest
-{
-    [JsonPropertyName("x")]
-    public double X { get; set; }
-
-    [JsonPropertyName("y")]
-    public double Y { get; set; }
-
-    [JsonPropertyName("kind")]
-    public string? Kind { get; set; }
-}
 
 public class PythonCalCsaResponse
 {

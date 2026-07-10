@@ -107,6 +107,7 @@ public class UltrasoundController : ControllerBase
         ultrasoundResult.Perimeter = segmentResult.Perimeter;
         ultrasoundResult.FlatteningRatio = segmentResult.FlatteningRatio;
         ultrasoundResult.Circularity = segmentResult.Circularity;
+        ultrasoundResult.ContourPoints = segmentResult.ContourPoints;
 
         // Nếu Status là string:
         ultrasoundResult.Status = "Đang xử lý";
@@ -127,96 +128,67 @@ public class UltrasoundController : ControllerBase
             flatteningRatio = segmentResult.FlatteningRatio,
             circularity = segmentResult.Circularity,
             status = ultrasoundResult.Status,
-            contourPoints = segmentResult.ContourPoints ?? new List<UltrasoundContourPointResponse>(),
+            contourPoints = segmentResult.ContourPoints,
         });
     }
 
     [HttpPost("result")]
-    public async Task<ActionResult> Result(
-        [FromQuery] int ultrasoundResultId,
-        [FromQuery] string originalUrl,
-        [FromQuery] string predMaskUrl,
-        [FromQuery] double csaMm2,
-        [FromQuery] double perimeter,
-        [FromQuery] double flatteningRatio,
-        [FromQuery] double circularity
-    )
+    public async Task<ActionResult> Result([FromBody] UltrasoundResultRequest request)
     {
         var ultrasoundResult = await _context.UltrasoundResults
-            .FirstOrDefaultAsync(x => x.Id == ultrasoundResultId);
+            .FirstOrDefaultAsync(x => x.Id == request.UltrasoundResultId);
 
         if (ultrasoundResult == null)
         {
             return NotFound(new
             {
-                message = "Không tìm thấy ultrasound result"
+                message = "not found ultrasound result"
             });
         }
 
         var client = _httpClientFactory.CreateClient("UltrasoundAi");
 
-        var url =
-            "result" +
-            $"?originalUrl={Uri.EscapeDataString(originalUrl)}" +
-            $"&predMaskUrl={Uri.EscapeDataString(predMaskUrl)}" +
-            $"&csaMm2={Uri.EscapeDataString(csaMm2.ToString(System.Globalization.CultureInfo.InvariantCulture))}" +
-            $"&perimeter={Uri.EscapeDataString(perimeter.ToString(System.Globalization.CultureInfo.InvariantCulture))}" +
-            $"&flattening_ratio={Uri.EscapeDataString(flatteningRatio.ToString(System.Globalization.CultureInfo.InvariantCulture))}" +
-            $"&circularity={Uri.EscapeDataString(circularity.ToString(System.Globalization.CultureInfo.InvariantCulture))}";
-
-        HttpResponseMessage pythonResponse;
-
-        try
+        var response = await client.PostAsJsonAsync("result", new
         {
-            pythonResponse = await client.PostAsync(url, null);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
-            {
-                message = "Không gọi được API ultrasound Python",
-                error = ex.Message
-            });
-        }
+            originalUrl = request.OriginalUrl,
+            predMaskUrl = request.PredMaskUrl,
+            csaMm2 = request.CsaMm2,
+            perimeter = request.Perimeter,
+            flattening_ratio = request.FlatteningRatio,
+            circularity = request.Circularity,
+            contour_points = request.ContourPoints
+        });
 
-        var json = await pythonResponse.Content.ReadAsStringAsync();
+        var json = await response.Content.ReadAsStringAsync();
 
-        if (!pythonResponse.IsSuccessStatusCode)
-        {
-            return StatusCode((int)pythonResponse.StatusCode, new
-            {
-                message = "Python API trả lỗi",
-                detail = json
-            });
-        }
-
-        var result = JsonSerializer.Deserialize<PythonUltrasoundResultResponse>(
+        var result =
+        JsonSerializer.Deserialize<PythonUltrasoundResultResponse>(
             json,
             new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
-            }
-        );
+            });
 
         if (result == null)
         {
             return StatusCode(500, new
             {
-                message = "Không parse được response từ Python API",
-                raw = json
+                message = "Không parse được response từ Python API."
             });
         }
 
         var finalLabel = result.FusionPrediction?.Label;
         var finalConfidence = result.FusionPrediction?.Confidence ?? 0;
 
-        ultrasoundResult.ImageUrl = originalUrl;
-        ultrasoundResult.MaskUrl = predMaskUrl;
-        ultrasoundResult.Csa = csaMm2;
-        ultrasoundResult.Perimeter = perimeter;
-        ultrasoundResult.FlatteningRatio = flatteningRatio;
-        ultrasoundResult.Circularity = circularity;
+        ultrasoundResult.ImageUrl = request.OriginalUrl;
+        ultrasoundResult.MaskUrl = request.PredMaskUrl;
+        ultrasoundResult.Csa = request.CsaMm2;
+        ultrasoundResult.Perimeter = request.Perimeter;
+        ultrasoundResult.FlatteningRatio = request.FlatteningRatio;
+        ultrasoundResult.Circularity = request.Circularity;
         ultrasoundResult.Label = finalLabel;
+        ultrasoundResult.Confidence = finalConfidence;
+        ultrasoundResult.ContourPoints = request.ContourPoints;
         ultrasoundResult.Status = "Đang xử lý";
 
         await _context.SaveChangesAsync();
@@ -232,11 +204,10 @@ public class UltrasoundController : ControllerBase
             perimeter = ultrasoundResult.Perimeter,
             flatteningRatio = ultrasoundResult.FlatteningRatio,
             circularity = ultrasoundResult.Circularity,
-
             label = finalLabel,
             confidence = finalConfidence,
+            contourPoints = ultrasoundResult.ContourPoints,
             status = ultrasoundResult.Status,
-
             imagePrediction = result.ImagePrediction,
             featurePrediction = result.FeaturePrediction,
             fusionPrediction = result.FusionPrediction
@@ -332,6 +303,7 @@ public class UltrasoundController : ControllerBase
         ultrasoundResult.FlatteningRatio = calCsaResult.FlatteningRatio;
         ultrasoundResult.Circularity = calCsaResult.Circularity;
         ultrasoundResult.MaskUrl = calCsaResult.PredMaskUrl;
+        ultrasoundResult.ContourPoints  = request.Contours;
         // ultrasoundResult.Status = "SEGMENTED";
 
         await _context.SaveChangesAsync();
@@ -345,6 +317,7 @@ public class UltrasoundController : ControllerBase
             flatteningRatio = calCsaResult.FlatteningRatio,
             circularity = calCsaResult.Circularity,
             pred_mask_url = calCsaResult.PredMaskUrl,
+            contourPoints = request.Contours,
             // areaPx = calCsaResult.AreaPx,
             // status = ultrasoundResult.Status
         });
@@ -402,7 +375,8 @@ public class UltrasoundController : ControllerBase
             ultrasound.Perimeter,
             ultrasound.Label,
             ultrasound.Confidence,
-            ultrasound.Status
+            ultrasound.Status,
+            ultrasound.ContourPoints
         });
     }
 }
