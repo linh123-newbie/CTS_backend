@@ -31,7 +31,7 @@ public class UltrasoundResult
     public int ClinicalRecordId { get; set; }
     [Column("confidence")]
     public double? Confidence { get; set; }
-    [Column("contour_points")]
+    [Column("contour_points", TypeName = "jsonb")]
     public List<ContourPoints>? ContourPoints { get; set; }
     [Column("status")]
     public String? Status { get; set; }
