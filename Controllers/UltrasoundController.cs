@@ -154,7 +154,7 @@ public class UltrasoundController : ControllerBase
             predMaskUrl = request.PredMaskUrl,
             csaMm2 = request.CsaMm2,
             perimeter = request.Perimeter,
-            flattening_ratio = request.FlatteningRatio,
+            flatteningRatio  = request.FlatteningRatio,
             circularity = request.Circularity,
             // contour_points = request.ContourPoints
         });
