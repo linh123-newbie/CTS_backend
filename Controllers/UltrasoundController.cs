@@ -109,7 +109,7 @@ public class UltrasoundController : ControllerBase
         ultrasoundResult.Circularity = segmentResult.Circularity;
 
         // Nếu Status là string:
-        ultrasoundResult.Status = "SEGMENTED";
+        ultrasoundResult.Status = "Đang xử lí";
 
         // Nếu Status của bạn là int thì đổi thành:
         // ultrasoundResult.Status = 1;
@@ -213,11 +213,11 @@ public class UltrasoundController : ControllerBase
         ultrasoundResult.ImageUrl = originalUrl;
         ultrasoundResult.MaskUrl = predMaskUrl;
         ultrasoundResult.Csa = csaMm2;
-        ultrasoundResult.Perimeter = perimeter ;
+        ultrasoundResult.Perimeter = perimeter;
         ultrasoundResult.FlatteningRatio = flatteningRatio;
         ultrasoundResult.Circularity = circularity;
         ultrasoundResult.Label = finalLabel;
-        ultrasoundResult.Status = "CONFIRM";
+        ultrasoundResult.Status = "Đang xử lý";
 
         await _context.SaveChangesAsync();
 
@@ -229,9 +229,9 @@ public class UltrasoundController : ControllerBase
             imageUrl = ultrasoundResult.ImageUrl,
             maskUrl = ultrasoundResult.MaskUrl,
             csa = ultrasoundResult.Csa,
-            perimeter  = ultrasoundResult.Perimeter,
-            flatteningRatio  = ultrasoundResult.FlatteningRatio,
-            circularity  = ultrasoundResult.Circularity,
+            perimeter = ultrasoundResult.Perimeter,
+            flatteningRatio = ultrasoundResult.FlatteningRatio,
+            circularity = ultrasoundResult.Circularity,
 
             label = finalLabel,
             confidence = finalConfidence,
@@ -341,12 +341,40 @@ public class UltrasoundController : ControllerBase
             // success = true,
             // ultrasoundResultId = ultrasoundResult.Id,
             csaMm2 = calCsaResult.CsaMm2,
-            perimeter  = calCsaResult.Perimeter,
-            flatteningRatio  = calCsaResult.FlatteningRatio,
+            perimeter = calCsaResult.Perimeter,
+            flatteningRatio = calCsaResult.FlatteningRatio,
             circularity = calCsaResult.Circularity,
             pred_mask_url = calCsaResult.PredMaskUrl,
             // areaPx = calCsaResult.AreaPx,
             // status = ultrasoundResult.Status
         });
     }
+
+    [HttpPost("confirm")]
+    public async Task<ActionResult> Confirm([FromBody] int ultrasoundResultId, [FromBody] String status)
+    {
+        var ultrasound = await _context.UltrasoundResults.FirstOrDefaultAsync(u => u.Id == ultrasoundResultId);
+        if (ultrasound != null)
+        {
+            ultrasound.Status = status;
+            await _context.SaveChangesAsync();
+            return Ok("ok");
+        }
+        if (ultrasound == null)
+        {
+            return NotFound(new
+            {
+                message = "Không tìm thấy kết quả siêu âm."
+            });
+        }
+        ;
+        ultrasound.Status = status;
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            message = "ok."
+        });
+    }
 }
+
