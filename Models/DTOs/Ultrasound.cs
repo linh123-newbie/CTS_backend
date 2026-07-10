@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations.Schema;
 
 public class UltrasoundSegmentResponse
 {
@@ -26,7 +27,7 @@ public class UltrasoundSegmentResponse
     [JsonPropertyName("circularity")]
     public double? Circularity { get; set; }
 
-    [JsonPropertyName("contour_points")]
+    [Column("contour_points", TypeName = "jsonb")]
     public List<ContourPoints>? ContourPoints { get; set; }
 
     // [JsonPropertyName("image_prediction")]
