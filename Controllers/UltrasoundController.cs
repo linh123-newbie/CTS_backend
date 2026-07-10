@@ -351,7 +351,7 @@ public class UltrasoundController : ControllerBase
     }
 
     [HttpPost("confirm")]
-    public async Task<ActionResult> Confirm([FromBody] int ultrasoundResultId, [FromBody] String status)
+    public async Task<ActionResult> Confirm([FromForm] int ultrasoundResultId, [FromForm] String status)
     {
         var ultrasound = await _context.UltrasoundResults.FirstOrDefaultAsync(u => u.Id == ultrasoundResultId);
         if (ultrasound != null)
