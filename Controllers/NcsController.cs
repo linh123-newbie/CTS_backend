@@ -1600,7 +1600,7 @@ public class NcsController : ControllerBase
         {
             ns.FilePath
         }
-    ).FirstOrDefaultAsync();
+    ).ToListAsync();
         var values = await (
         from nr in _context.NcsResults.AsNoTracking()
         join nn in _context.NcsNerveDetails.AsNoTracking()
