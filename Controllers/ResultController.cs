@@ -278,15 +278,18 @@ public class ResultController : ControllerBase
     }
 
     [HttpGet("getResults")]
-    public async Task<ActionResult> GetResults([FromQuery] int doctorId)
+    public async Task<ActionResult> GetResults([FromQuery] int doctorUserId)
     {
-        if (doctorId <= 0)
+        if (doctorUserId <= 0)
         {
-            return BadRequest("Thiếu doctorId.");
+            return BadRequest("missing doctorId.");
         }
 
         var rows = await (
             from cr in _context.ClinicalRecords.AsNoTracking()
+
+            join d in _context.Staffs.AsNoTracking()
+            on cr.DoctorId equals d.Id
 
             join p in _context.Patients.AsNoTracking()
                 on cr.PatientId equals p.Id
@@ -299,7 +302,7 @@ public class ResultController : ControllerBase
                 on cr.Id equals urTemp.ClinicalRecordId into ultrasoundGroup
             from ur in ultrasoundGroup.DefaultIfEmpty()
 
-            where cr.DoctorId == doctorId
+            where d.UserId == doctorUserId
 
             select new
             {
@@ -307,7 +310,7 @@ public class ResultController : ControllerBase
                 patientId = p.Id,
                 patientName = p.Name,
                 time = cr.Time,
-                label = cr.Label,
+                result = cr.Result ?? string.Empty,
 
                 ncsHand = nr == null
                     ? (int?)null
@@ -326,7 +329,7 @@ public class ResultController : ControllerBase
                 x.patientId,
                 x.patientName,
                 x.time,
-                x.label
+                x.result
             })
             .Select(group => new
             {
@@ -349,7 +352,7 @@ public class ResultController : ControllerBase
                     .OrderBy(x => x)
                     .ToList(),
 
-                label = group.Key.label
+                result = group.Key.result
             })
             .OrderByDescending(x => x.time)
             .ToList();

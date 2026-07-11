@@ -162,7 +162,7 @@ public class OverviewController : ControllerBase
                 return new
                 {
                     clinicalRecordId = g.Key.clinicalRecordId,
-                    time = g.Key.time.ToString("HH:mm"),
+                    time = g.Key.time?.ToString("HH:mm"),
                     patientId = g.Key.patientId,
                     patientCode = $"BN{g.Key.patientId:D5}",
                     patientName = g.Key.patientName,
