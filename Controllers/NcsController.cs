@@ -10,6 +10,8 @@ using System.Text;
 using Amazon.S3.Model;
 using Npgsql.EntityFrameworkCore.PostgreSQL.ValueGeneration.Internal;
 using Npgsql.Internal;
+using System.Data;
+using System.Runtime.InteropServices;
 
 
 namespace CTS_backend.Controllers;
@@ -1479,7 +1481,7 @@ public class NcsController : ControllerBase
     join nf in _context.NcsFeatures on nn.NcsFeatureId equals nf.Id
     join nd in _context.NcsNerveDetails on nn.NcsNerveDetailId equals nd.Id
     join nr in _context.NcsReferenceRanges on nf.Id equals nr.NcsFeatureId
-    where nd.NcsResultId == ncsResultId
+    where nd.NcsResultId == ncsResultId && nd.Confirm == true
           && nd.Confirm == true
           && new[] { 2, 4, 16, 17, 18 }.Contains(nf.Id)
     select new
@@ -1581,6 +1583,46 @@ public class NcsController : ControllerBase
             await UpdateNcsResultStatusIfBothPredictedAsync(ncsNerveDetail.NcsResultId);
 
         return Ok("Confirm successfully.");
+    }
+
+    [HttpPost("ncs_result")]
+    public async Task<IActionResult> NcsResult([FromForm] int ncsResultId, [FromForm] string type)
+    {
+        var waveform = await (
+        from nr in _context.NcsResults.AsNoTracking()
+        join nn in _context.NcsNerveDetails.AsNoTracking()
+            on nr.Id equals nn.NcsResultId
+        join ns in _context.NcsSignalFiles.AsNoTracking()
+            on nn.Id equals ns.NcsNerveDetailId
+        where nr.Id == ncsResultId
+              && nn.MeasurementType == type
+        select new
+        {
+            ns.FilePath
+        }
+    ).FirstOrDefaultAsync();
+        var values = await (
+        from nr in _context.NcsResults.AsNoTracking()
+        join nn in _context.NcsNerveDetails.AsNoTracking()
+            on nr.Id equals nn.NcsResultId
+        join nv in _context.NcsNerveValues.AsNoTracking()
+            on nn.Id equals nv.NcsNerveDetailId
+        join nf in _context.NcsFeatures.AsNoTracking()
+            on nv.NcsFeatureId equals nf.Id
+        where nr.Id == ncsResultId
+              && nn.MeasurementType == type
+        select new
+        {
+            nv.Value,
+            nf.Name,
+            nf.Unit
+        }
+    ).ToListAsync();
+        return Ok(new
+        {
+            waveform,
+            values
+        });
     }
 
 
