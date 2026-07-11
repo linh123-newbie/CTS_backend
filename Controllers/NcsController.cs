@@ -1594,7 +1594,7 @@ public class NcsController : ControllerBase
             on nr.Id equals nn.NcsResultId
         join ns in _context.NcsSignalFiles.AsNoTracking()
             on nn.Id equals ns.NcsNerveDetailId
-        where nr.Id == ncsResultId
+        where nr.Id == ncsResultId && nn.Confirm == true
               && nn.MeasurementType == type
         select new
         {
@@ -1638,7 +1638,7 @@ public class NcsController : ControllerBase
         join nf in _context.NcsFeatures.AsNoTracking()
             on nv.NcsFeatureId equals nf.Id
         where nr.Id == ncsResultId
-              && nn.MeasurementType == type
+              && nn.MeasurementType == type && nn.Confirm == true
         select new
         {
             nv.Value,
