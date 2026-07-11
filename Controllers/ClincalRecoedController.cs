@@ -222,6 +222,20 @@ public class ClinicalRecordController : ControllerBase
             }
         ).FirstOrDefaultAsync();
 
+        var finalResult = await (
+            from cr in _context.ClinicalRecords.AsNoTracking()
+
+            where cr.Id == clinicalRecordId
+
+            select new
+            {
+                clinicalRecordId = cr.Id,
+                result = cr.Result,
+                note = cr.Note
+
+            }
+        ).FirstOrDefaultAsync();
+
         var results = await (
     from cr in _context.ClinicalRecords.AsNoTracking()
 
@@ -267,7 +281,8 @@ public class ClinicalRecordController : ControllerBase
         return Ok(new
         {
             patient,
-            results
+            results,
+            finalResult
         });
     }
 
