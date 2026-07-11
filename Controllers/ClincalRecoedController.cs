@@ -218,13 +218,56 @@ public class ClinicalRecordController : ControllerBase
                 name = p.Name,
                 dateBirth = p.DateBirth,
                 time = cr.Time,
-                
+
             }
         ).FirstOrDefaultAsync();
 
+        var results = await (
+    from cr in _context.ClinicalRecords.AsNoTracking()
+
+    join nrTemp in _context.NcsResults.AsNoTracking()
+        on cr.Id equals nrTemp.ClinicalRecordId into ncsGroup
+    from nr in ncsGroup.DefaultIfEmpty()
+
+    join urTemp in _context.UltrasoundResults.AsNoTracking()
+        on cr.Id equals urTemp.ClinicalRecordId into ultrasoundGroup
+    from ur in ultrasoundGroup.DefaultIfEmpty()
+
+    where cr.Id == clinicalRecordId
+
+    select new
+    {
+        result = new
+        {
+            label = cr.Label,
+            confidence = cr.Confidence
+        },
+
+        ncs = nr == null
+            ? null
+            : new
+            {
+                id = nr.Id,
+                label = nr.Label,
+                confidence = nr.Confidence
+            },
+
+        ultrasound = ur == null
+            ? null
+            : new
+            {
+                id = ur.Id,
+                label = ur.Label,
+                confidence = ur.Confidence
+               
+            }
+    }
+).FirstOrDefaultAsync();
+
         return Ok(new
         {
-            patient
+            patient,
+            results
         });
     }
 
