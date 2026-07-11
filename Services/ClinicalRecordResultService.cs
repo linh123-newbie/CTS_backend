@@ -28,7 +28,7 @@ public class ClinicalRecordResultService
             .ToLowerInvariant();
 
         return normalized is
-            "đã xử lí";
+            "đã xử lý";
     }
 
     private static string NormalizeLabel(string? label)
@@ -85,15 +85,13 @@ public class ClinicalRecordResultService
     }
 
     public async Task<bool> UpdateIfReadyAsync(
-        int clinicalRecordId,
-        CancellationToken cancellationToken = default
-    )
+    int clinicalRecordId,
+    CancellationToken cancellationToken = default
+)
     {
         var ncsResult = await _context.NcsResults
             .AsNoTracking()
-            .Where(x =>
-                x.ClinicalRecordId == clinicalRecordId
-            )
+            .Where(x => x.ClinicalRecordId == clinicalRecordId)
             .OrderByDescending(x => x.Id)
             .Select(x => new
             {
@@ -103,50 +101,52 @@ public class ClinicalRecordResultService
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-        var ultrasoundResult =
-            await _context.UltrasoundResults
-                .AsNoTracking()
-                .Where(x =>
-                    x.ClinicalRecordId == clinicalRecordId
-                )
-                .OrderByDescending(x => x.Id)
-                .Select(x => new
-                {
-                    x.Status,
-                    x.Label,
-                    x.Confidence
-                })
-                .FirstOrDefaultAsync(cancellationToken);
+        var ultrasoundResult = await _context.UltrasoundResults
+            .AsNoTracking()
+            .Where(x => x.ClinicalRecordId == clinicalRecordId)
+            .OrderByDescending(x => x.Id)
+            .Select(x => new
+            {
+                x.Status,
+                x.Label,
+                x.Confidence
+            })
+            .FirstOrDefaultAsync(cancellationToken);
 
-        // Phải có đủ cả NCS và siêu âm.
-        if (ncsResult == null || ultrasoundResult == null)
+        // Không có loại khảo sát nào.
+        if (ncsResult == null && ultrasoundResult == null)
         {
             return false;
         }
 
-        // Cả hai phải xử lý hoàn tất.
-        if (
-            !IsCompletedStatus(ncsResult.Status) ||
-            !IsCompletedStatus(ultrasoundResult.Status)
-        )
+        /*
+         * Nếu có NCS thì NCS đó phải hoàn tất
+         * và phải có label, confidence hợp lệ.
+         */
+        var ncsReady =
+            ncsResult != null &&
+            IsCompletedStatus(ncsResult.Status) &&
+            IsValidNcsLabel(ncsResult.Label) &&
+            ncsResult.Confidence.HasValue;
+
+        /*
+         * Nếu có siêu âm thì siêu âm đó phải hoàn tất
+         * và phải có label, confidence hợp lệ.
+         */
+        var ultrasoundReady =
+            ultrasoundResult != null &&
+            IsCompletedStatus(ultrasoundResult.Status) &&
+            IsUltrasoundCts(ultrasoundResult.Label) != null &&
+            ultrasoundResult.Confidence.HasValue;
+
+        // Có NCS nhưng chưa hoàn tất hoặc thiếu kết quả.
+        if (ncsResult != null && !ncsReady)
         {
             return false;
         }
 
-        // NCS phải có label hợp lệ và confidence.
-        if (
-            !IsValidNcsLabel(ncsResult.Label) ||
-            !ncsResult.Confidence.HasValue
-        )
-        {
-            return false;
-        }
-
-        // Siêu âm phải có CTS hoặc Control và confidence.
-        if (
-            IsUltrasoundCts(ultrasoundResult.Label) == null ||
-            !ultrasoundResult.Confidence.HasValue
-        )
+        // Có siêu âm nhưng chưa hoàn tất hoặc thiếu kết quả.
+        if (ultrasoundResult != null && !ultrasoundReady)
         {
             return false;
         }
@@ -162,25 +162,45 @@ public class ClinicalRecordResultService
             return false;
         }
 
-        var ultrasoundSupport = GetUltrasoundSupport(
-            ncsResult.Label!,
-            ultrasoundResult.Label!,
-            ultrasoundResult.Confidence.Value
-        );
+        // Trường hợp 1: Có cả NCS và siêu âm.
+        if (ncsReady && ultrasoundReady)
+        {
+            var ultrasoundSupport = GetUltrasoundSupport(
+                ncsResult!.Label!,
+                ultrasoundResult!.Label!,
+                ultrasoundResult.Confidence!.Value
+            );
 
-        // Label mức độ lấy từ NCS.
-        clinicalRecord.Label = ncsResult.Label;
+            // Nhãn mức độ lấy từ NCS.
+            clinicalRecord.Label = ncsResult.Label;
 
-        // NCS chiếm 70%, siêu âm hỗ trợ 30%.
-        clinicalRecord.Confidence = Math.Round(
-            ncsResult.Confidence.Value * 0.7 +
-            ultrasoundSupport * 0.3,
-            4
-        );
+            // Confidence tổng hợp.
+            clinicalRecord.Confidence = Math.Round(
+                ncsResult.Confidence!.Value * 0.7 +
+                ultrasoundSupport * 0.3,
+                4
+            );
+        }
+        // Trường hợp 2: Chỉ có NCS.
+        else if (ncsReady)
+        {
+            clinicalRecord.Label = ncsResult!.Label;
+            clinicalRecord.Confidence =
+                Math.Round(ncsResult.Confidence!.Value, 4);
+        }
+        // Trường hợp 3: Chỉ có siêu âm.
+        else if (ultrasoundReady)
+        {
+            clinicalRecord.Label = ultrasoundResult!.Label;
+            clinicalRecord.Confidence =
+                Math.Round(ultrasoundResult.Confidence!.Value, 4);
+        }
+        else
+        {
+            return false;
+        }
 
-        await _context.SaveChangesAsync(
-            cancellationToken
-        );
+        await _context.SaveChangesAsync(cancellationToken);
 
         return true;
     }

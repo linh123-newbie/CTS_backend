@@ -157,7 +157,7 @@ public class UltrasoundController : ControllerBase
             predMaskUrl = request.PredMaskUrl,
             csaMm2 = request.CsaMm2,
             perimeter = request.Perimeter,
-            flatteningRatio  = request.FlatteningRatio,
+            flatteningRatio = request.FlatteningRatio,
             circularity = request.Circularity,
             // contour_points = request.ContourPoints
         });
@@ -306,7 +306,7 @@ public class UltrasoundController : ControllerBase
         ultrasoundResult.FlatteningRatio = calCsaResult.FlatteningRatio;
         ultrasoundResult.Circularity = calCsaResult.Circularity;
         ultrasoundResult.MaskUrl = calCsaResult.PredMaskUrl;
-        ultrasoundResult.ContourPoints  = request.Contours;
+        ultrasoundResult.ContourPoints = request.Contours;
         // ultrasoundResult.Status = "SEGMENTED";
 
         await _context.SaveChangesAsync();
@@ -327,15 +327,19 @@ public class UltrasoundController : ControllerBase
     }
 
     [HttpPost("confirm")]
-    public async Task<ActionResult> Confirm([FromForm] int ultrasoundResultId, [FromForm] String status)
+    public async Task<ActionResult> Confirm(
+    [FromForm] int ultrasoundResultId,
+    [FromForm] string status
+)
     {
-        var ultrasound = await _context.UltrasoundResults.FirstOrDefaultAsync(u => u.Id == ultrasoundResultId);
-        if (ultrasound != null)
+        if (ultrasoundResultId <= 0)
         {
-            ultrasound.Status = status;
-            await _context.SaveChangesAsync();
-            return Ok("ok");
+            return BadRequest("Missing ultrasound result id.");
         }
+
+        var ultrasound = await _context.UltrasoundResults
+            .FirstOrDefaultAsync(x => x.Id == ultrasoundResultId);
+
         if (ultrasound == null)
         {
             return NotFound(new
@@ -343,18 +347,20 @@ public class UltrasoundController : ControllerBase
                 message = "Không tìm thấy kết quả siêu âm."
             });
         }
-        ;
-        ultrasound.Status = status;
+
+        ultrasound.Status = status.Trim();
+
         await _context.SaveChangesAsync();
 
-         var clinicalRecordUpdated =
-        await _clinicalRecordResultService.UpdateIfReadyAsync(
-            ultrasound.ClinicalRecordId
-        );
+        var clinicalRecordUpdated =
+            await _clinicalRecordResultService.UpdateIfReadyAsync(
+                ultrasound.ClinicalRecordId
+            );
 
         return Ok(new
         {
-            message = "ok."
+            message = "Confirm successfully.",
+           
         });
     }
 
