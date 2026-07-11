@@ -256,7 +256,7 @@ public class ResultController : ControllerBase
             .ToListAsync();
 
         var data = new
-        {     
+        {
             symptom = new
             {
                 score = symptomScore,
@@ -273,6 +273,86 @@ public class ResultController : ControllerBase
 
             physicalResults = physicalResults
         };
+
+        return Ok(data);
+    }
+
+    [HttpGet("getResults")]
+    public async Task<ActionResult> GetResults([FromQuery] int doctorId)
+    {
+        if (doctorId <= 0)
+        {
+            return BadRequest("Thiếu doctorId.");
+        }
+
+        var rows = await (
+            from cr in _context.ClinicalRecords.AsNoTracking()
+
+            join p in _context.Patients.AsNoTracking()
+                on cr.PatientId equals p.Id
+
+            join nrTemp in _context.NcsResults.AsNoTracking()
+                on cr.Id equals nrTemp.ClinicalRecordId into ncsGroup
+            from nr in ncsGroup.DefaultIfEmpty()
+
+            join urTemp in _context.UltrasoundResults.AsNoTracking()
+                on cr.Id equals urTemp.ClinicalRecordId into ultrasoundGroup
+            from ur in ultrasoundGroup.DefaultIfEmpty()
+
+            where cr.DoctorId == doctorId
+
+            select new
+            {
+                id = cr.Id,
+                patientId = p.Id,
+                patientName = p.Name,
+                time = cr.Time,
+                label = cr.Label,
+
+                ncsHand = nr == null
+                    ? (int?)null
+                    : nr.Hand,
+
+                ultrasoundHand = ur == null
+                    ? (int?)null
+                    : ur.Hand
+            }
+        ).ToListAsync();
+
+        var data = rows
+            .GroupBy(x => new
+            {
+                x.id,
+                x.patientId,
+                x.patientName,
+                x.time,
+                x.label
+            })
+            .Select(group => new
+            {
+                id = group.Key.id,
+                patientId = group.Key.patientId,
+                patientName = group.Key.patientName,
+                time = group.Key.time,
+
+                ncsHands = group
+                    .Where(x => x.ncsHand.HasValue)
+                    .Select(x => x.ncsHand!.Value)
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .ToList(),
+
+                ultrasoundHands = group
+                    .Where(x => x.ultrasoundHand.HasValue)
+                    .Select(x => x.ultrasoundHand!.Value)
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .ToList(),
+
+                label = group.Key.label
+            })
+            .OrderByDescending(x => x.time)
+            .ToList();
 
         return Ok(data);
     }
