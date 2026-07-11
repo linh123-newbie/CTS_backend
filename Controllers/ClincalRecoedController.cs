@@ -213,13 +213,14 @@ public class ClinicalRecordController : ControllerBase
 
             select new
             {
-                id = p.Id,
+                clinicalRecordId = cr.Id,
+                patientId = p.Id,
                 name = p.Name,
                 dateBirth = p.DateBirth,
                 time = cr.Time,
                 
             }
-        ).ToListAsync();
+        ).FirstOrDefaultAsync();
 
         return Ok(new
         {
