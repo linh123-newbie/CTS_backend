@@ -16,6 +16,7 @@ public class ClinicalRecordController : ControllerBase
         _context = context;
     }
 
+
     [HttpPost("addClinicalRecord")]
     public async Task<ActionResult> AddClinicalRecord(
     [FromQuery] int doctorUserId,

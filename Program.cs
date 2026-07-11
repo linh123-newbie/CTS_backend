@@ -5,6 +5,7 @@ using System.Text.Json;
 using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
+using CTS_backend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,6 +48,11 @@ builder.Services.AddDbContext<AppDbContext>(
         options.UseNpgsql(dataSource);
     }
 );
+
+builder.Services.AddScoped<
+    IClinicalRecordResultService,
+    ClinicalRecordResultService
+>();
 
 builder.Services.AddHttpClient("UltrasoundAi", client =>
 {

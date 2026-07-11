@@ -12,6 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.ValueGeneration.Internal;
 using Npgsql.Internal;
 using System.Data;
 using System.Runtime.InteropServices;
+using CTS_backend.Services;
 
 
 namespace CTS_backend.Controllers;
@@ -23,13 +24,15 @@ public class NcsController : ControllerBase
     private readonly AppDbContext _context;
     private readonly HttpClient _waveformClient;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IClinicalRecordResultService _clinicalRecordResultService;
 
 
-    public NcsController(AppDbContext context, IHttpClientFactory httpClientFactory, IConfiguration configuration)
+    public NcsController(AppDbContext context, IHttpClientFactory httpClientFactory, IConfiguration configuration, IClinicalRecordResultService clinicalRecordResultService)
     {
         _context = context;
         _httpClientFactory = httpClientFactory;
         _waveformClient = httpClientFactory.CreateClient("WaveformAi");
+        _clinicalRecordResultService = clinicalRecordResultService;
     }
 
     private async Task<List<double>> ReadSignalValuesFromUrlAsync(string? signalUrl)
@@ -1581,6 +1584,24 @@ public class NcsController : ControllerBase
 
         var ncsResultStatus =
             await UpdateNcsResultStatusIfBothPredictedAsync(ncsNerveDetail.NcsResultId);
+
+        var clinicalRecordUpdated = false;
+
+        if (ncsNerveDetail.NcsResultId is int ncsResultId)
+        {
+            var clinicalRecordId = await _context.NcsResults
+                .Where(x => x.Id == ncsResultId)
+                .Select(x => (int?)x.ClinicalRecordId)
+                .FirstOrDefaultAsync();
+
+            if (clinicalRecordId.HasValue)
+            {
+                clinicalRecordUpdated =
+                    await _clinicalRecordResultService.UpdateIfReadyAsync(
+                        clinicalRecordId.Value
+                    );
+            }
+        }
 
         return Ok("Confirm successfully.");
     }

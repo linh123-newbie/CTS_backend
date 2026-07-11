@@ -1,4 +1,5 @@
 using CTS_backend.Data;
+using CTS_backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Http.Headers;
@@ -11,11 +12,13 @@ public class UltrasoundController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IClinicalRecordResultService _clinicalRecordResultService;
 
-    public UltrasoundController(AppDbContext context, IHttpClientFactory httpClientFactory, HttpClient httpClient)
+    public UltrasoundController(AppDbContext context, IHttpClientFactory httpClientFactory, HttpClient httpClient, IClinicalRecordResultService clinicalRecordResultService)
     {
         _context = context;
         _httpClientFactory = httpClientFactory;
+        _clinicalRecordResultService = clinicalRecordResultService;
     }
 
     [HttpGet("getUltrasoundResults")]
@@ -343,6 +346,11 @@ public class UltrasoundController : ControllerBase
         ;
         ultrasound.Status = status;
         await _context.SaveChangesAsync();
+
+         var clinicalRecordUpdated =
+        await _clinicalRecordResultService.UpdateIfReadyAsync(
+            ultrasound.ClinicalRecordId
+        );
 
         return Ok(new
         {

@@ -170,7 +170,7 @@ public class OverviewController : ControllerBase
                     ncs = ncs?.handText,
                     ultrasound = ultrasound?.handText,
 
-                    status = GetOverallSessionStatus(formattedStatuses)
+                    // status = GetOverallSessionStatus(formattedStatuses)
                 };
             })
             .ToList();
