@@ -259,7 +259,7 @@ public class ClinicalRecordController : ControllerBase
                 id = ur.Id,
                 label = ur.Label,
                 confidence = ur.Confidence
-               
+
             }
     }
 ).FirstOrDefaultAsync();
@@ -270,5 +270,56 @@ public class ClinicalRecordController : ControllerBase
             results
         });
     }
+
+    [HttpPost("confirmResult")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult> ConfirmResult(
+    [FromForm] int clinicalRecordId,
+    [FromForm] string result,
+    [FromForm] string? note
+)
+    {
+        if (clinicalRecordId <= 0)
+        {
+            return BadRequest(new
+            {
+                message = "missing clinicalRecordId."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(result))
+        {
+            return BadRequest(new
+            {
+                message = "choose result."
+            });
+        }
+
+        var clinicalRecord = await _context.ClinicalRecords
+            .FirstOrDefaultAsync(x => x.Id == clinicalRecordId);
+
+        if (clinicalRecord == null)
+        {
+            return NotFound(new
+            {
+                message = "not found clinical record."
+            });
+        }
+
+        clinicalRecord.Result = result.Trim();
+
+        clinicalRecord.Note = string.IsNullOrWhiteSpace(note)
+            ? null
+            : note.Trim();
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            message = "ok.",
+
+        });
+    }
+
 
 }
