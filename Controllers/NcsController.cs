@@ -1588,7 +1588,7 @@ public class NcsController : ControllerBase
     [HttpPost("ncs_result")]
     public async Task<IActionResult> NcsResult([FromForm] int ncsResultId, [FromForm] string type)
     {
-        var waveform = await (
+        var files = await (
         from nr in _context.NcsResults.AsNoTracking()
         join nn in _context.NcsNerveDetails.AsNoTracking()
             on nr.Id equals nn.NcsResultId
@@ -1601,6 +1601,34 @@ public class NcsController : ControllerBase
             ns.FilePath
         }
     ).ToListAsync();
+
+        var httpClient = _httpClientFactory.CreateClient();
+
+        var waveform = new List<object>();
+
+        foreach (var file in files)
+        {
+            if (string.IsNullOrWhiteSpace(file.FilePath))
+                continue;
+
+            var text = await httpClient.GetStringAsync(file.FilePath);
+
+            var signalValues = text
+                .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => double.Parse(
+                    x,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture
+                ))
+                .ToArray();
+
+            waveform.Add(new
+            {
+                // site = file.Site,
+                values = signalValues
+            });
+        }
+
         var values = await (
         from nr in _context.NcsResults.AsNoTracking()
         join nn in _context.NcsNerveDetails.AsNoTracking()
