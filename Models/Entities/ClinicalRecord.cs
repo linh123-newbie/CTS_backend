@@ -16,14 +16,6 @@ public class ClinicalRecord
     public int DoctorId { get; set; }
     [Column("time")]
     public DateTime? Time { get; set; }
-    [Column("result")]
-    public String? Result { get; set; } = string.Empty;
-    [Column("label")]
-    public String? Label { get; set; } = string.Empty;
-    [Column("confidence")]
-    public double? Confidence { get; set; }
-    [Column("note")]
-    public String? Note { get; set; } = string.Empty;
    
     [ForeignKey(nameof(PatientId))]
     public Patients? Patient { get; set; }

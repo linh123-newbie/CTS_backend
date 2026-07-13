@@ -89,8 +89,9 @@ public class NcsController : ControllerBase
     {
         var query =
             from n in _context.NcsResults
+            join h in _context.HandResults on n.HandResultId equals h.Id
             join c in _context.ClinicalRecords
-                on n.ClinicalRecordId equals c.Id
+                on h.ClinicalRecordId equals c.Id
             join p in _context.Patients
                 on c.PatientId equals p.Id
             join s in _context.Staffs
@@ -102,8 +103,8 @@ public class NcsController : ControllerBase
                 clinicalRecordId = c.Id,
                 patientId = p.Id,
                 patientName = p.Name,
-                hand = n.Hand,
-                handText = n.Hand == 1 ? "Tay phải" : "Tay trái",
+                hand = h.Hand,
+                handText = h.Hand == 1 ? "Tay phải" : "Tay trái",
                 label = n.Label,
                 status = n.Status,
                 time = c.Time
@@ -1434,7 +1435,8 @@ public class NcsController : ControllerBase
 
         var patient = await (
             from n in _context.NcsResults
-            join c in _context.ClinicalRecords on n.ClinicalRecordId equals c.Id
+            join h in _context.HandResults on n.HandResultId equals h.Id
+            join c in _context.ClinicalRecords on h.ClinicalRecordId equals c.Id
             join p in _context.Patients on c.PatientId equals p.Id
             where n.Id == ncsResultId
             select new
@@ -1443,7 +1445,7 @@ public class NcsController : ControllerBase
                 patientId = p.Id,
                 patientName = p.Name,
                 clinicalTime = c.Time,
-                hand = n.Hand,
+                hand = h.Hand,
                 dateBirth = p.DateBirth,
 
                 ncsLabel = n.Label,
@@ -1585,22 +1587,18 @@ public class NcsController : ControllerBase
         var ncsResultStatus =
             await UpdateNcsResultStatusIfBothPredictedAsync(ncsNerveDetail.NcsResultId);
 
-        var clinicalRecordUpdated = false;
+        var handResultUpdated = false;
+        var handResultId = await _context.NcsResults
+        .Where(x => x.Id == ncsNerveDetail.NcsResultId.Value)
+        .Select(x => (int?)x.HandResultId)
+        .FirstOrDefaultAsync();
 
-        if (ncsNerveDetail.NcsResultId is int ncsResultId)
+        if (handResultId.HasValue)
         {
-            var clinicalRecordId = await _context.NcsResults
-                .Where(x => x.Id == ncsResultId)
-                .Select(x => (int?)x.ClinicalRecordId)
-                .FirstOrDefaultAsync();
-
-            if (clinicalRecordId.HasValue)
-            {
-                clinicalRecordUpdated =
-                    await _clinicalRecordResultService.UpdateIfReadyAsync(
-                        clinicalRecordId.Value
-                    );
-            }
+            handResultUpdated =
+                await _clinicalRecordResultService.UpdateIfReadyAsync(
+                    handResultId.Value
+                );
         }
 
         return Ok("Confirm successfully.");

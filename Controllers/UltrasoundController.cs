@@ -27,8 +27,9 @@ public class UltrasoundController : ControllerBase
     {
         var query =
             from n in _context.UltrasoundResults
+            join h in _context.HandResults on n.HandResultId equals h.Id
             join c in _context.ClinicalRecords
-                on n.ClinicalRecordId equals c.Id
+                on h.ClinicalRecordId equals c.Id
             join p in _context.Patients
                 on c.PatientId equals p.Id
             join s in _context.Staffs
@@ -40,8 +41,8 @@ public class UltrasoundController : ControllerBase
                 clinicalRecordId = c.Id,
                 patientId = p.Id,
                 patientName = p.Name,
-                hand = n.Hand,
-                handText = n.Hand == 1 ? "Tay phải" : "Tay trái",
+                hand = h.Hand,
+                handText = h.Hand == 1 ? "Tay phải" : "Tay trái",
                 label = n.Label,
                 status = n.Status,
                 time = c.Time
@@ -352,9 +353,11 @@ public class UltrasoundController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        var clinicalRecordUpdated =
+        
+
+        var handResultUpdated =
             await _clinicalRecordResultService.UpdateIfReadyAsync(
-                ultrasound.ClinicalRecordId
+                ultrasound.HandResultId
             );
 
         return Ok(new

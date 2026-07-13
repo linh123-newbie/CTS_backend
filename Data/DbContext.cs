@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Users> Users { get; set; }
     public DbSet<Patients> Patients { get; set; }
     public DbSet<SelfAssessment> SelfAssessment { get; set; }
+    public DbSet<HandResult> HandResults { get; set; }
     public DbSet<QuestionType> QuestionTypes { get; set; }
     public DbSet<BctqQuestion> BctqQuestions { get; set; }
     public DbSet<BctqAnswer> BctqAnswers { get; set; }
@@ -42,6 +43,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<AssessmentPhysicalDetail>().ToTable("assessment_physical_detail");
         modelBuilder.Entity<AssessmentSymptomArea>().ToTable("assessment_symptom_area");
         modelBuilder.Entity<Users>().ToTable("users");
+        modelBuilder.Entity<HandResult>().ToTable("hand_result");
         modelBuilder.Entity<NcsFeatures>().ToTable("ncs_features");
         modelBuilder.Entity<NcsReferenceRange>().ToTable("ncs_reference_range");
         modelBuilder.Entity<NcsNerveValue>().ToTable("ncs_nerve_value");

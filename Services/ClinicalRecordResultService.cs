@@ -6,7 +6,7 @@ namespace CTS_backend.Services;
 public interface IClinicalRecordResultService
 {
     Task<bool> UpdateIfReadyAsync(
-        int clinicalRecordId,
+        int handResultId,
         CancellationToken cancellationToken = default
     );
 }
@@ -85,13 +85,13 @@ public class ClinicalRecordResultService
     }
 
     public async Task<bool> UpdateIfReadyAsync(
-    int clinicalRecordId,
+    int handResultId,
     CancellationToken cancellationToken = default
 )
     {
         var ncsResult = await _context.NcsResults
             .AsNoTracking()
-            .Where(x => x.ClinicalRecordId == clinicalRecordId)
+            .Where(x => x.HandResultId == handResultId)
             .OrderByDescending(x => x.Id)
             .Select(x => new
             {
@@ -103,7 +103,7 @@ public class ClinicalRecordResultService
 
         var ultrasoundResult = await _context.UltrasoundResults
             .AsNoTracking()
-            .Where(x => x.ClinicalRecordId == clinicalRecordId)
+            .Where(x => x.HandResultId == handResultId)
             .OrderByDescending(x => x.Id)
             .Select(x => new
             {
@@ -151,13 +151,13 @@ public class ClinicalRecordResultService
             return false;
         }
 
-        var clinicalRecord = await _context.ClinicalRecords
-            .FirstOrDefaultAsync(
-                x => x.Id == clinicalRecordId,
-                cancellationToken
-            );
+        var handResult = await _context.HandResults
+    .FirstOrDefaultAsync(
+        x => x.Id == handResultId,
+        cancellationToken
+    );
 
-        if (clinicalRecord == null)
+        if (handResult == null)
         {
             return false;
         }
@@ -172,10 +172,10 @@ public class ClinicalRecordResultService
             );
 
             // Nhãn mức độ lấy từ NCS.
-            clinicalRecord.Label = ncsResult.Label;
+            handResult.Label = ncsResult.Label;
 
             // Confidence tổng hợp.
-            clinicalRecord.Confidence = Math.Round(
+            handResult.Confidence = Math.Round(
                 ncsResult.Confidence!.Value * 0.7 +
                 ultrasoundSupport * 0.3,
                 4
@@ -184,15 +184,15 @@ public class ClinicalRecordResultService
         // Trường hợp 2: Chỉ có NCS.
         else if (ncsReady)
         {
-            clinicalRecord.Label = ncsResult!.Label;
-            clinicalRecord.Confidence =
+            handResult.Label = ncsResult!.Label;
+            handResult.Confidence =
                 Math.Round(ncsResult.Confidence!.Value, 4);
         }
         // Trường hợp 3: Chỉ có siêu âm.
         else if (ultrasoundReady)
         {
-            clinicalRecord.Label = ultrasoundResult!.Label;
-            clinicalRecord.Confidence =
+            handResult.Label = ultrasoundResult!.Label;
+            handResult.Confidence =
                 Math.Round(ultrasoundResult.Confidence!.Value, 4);
         }
         else

@@ -11,18 +11,16 @@ public class NcsResult
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     [Column("id")]
     public int Id { get; set; }
-    [Column("clinical_record_id")]
-    public int ClinicalRecordId { get; set; }
-    [Column("hand")]
-    public int? Hand { get; set; }
+    [Column("hand_result_id")]
+    public int HandResultId { get; set; }
     [Column("label")]
     public String? Label { get; set; }
     [Column("confidence")]
     public double? Confidence { get; set; }
     [Column("status")]
     public String? Status { get; set; }
-    [ForeignKey(nameof(ClinicalRecordId))]
-    public ClinicalRecord? ClinicalRecord { get; set; }
+    [ForeignKey(nameof(HandResultId))]
+    public HandResult? HandResult { get; set; }
     
     
 }

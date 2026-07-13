@@ -15,8 +15,6 @@ public class UltrasoundResult
     public String? ImageUrl { get; set; }
     [Column("mask_url")]
     public String? MaskUrl { get; set; }
-    [Column("hand")]
-    public int? Hand { get; set; }
     [Column("label")]
     public String? Label { get; set; }
     [Column("csa")]
@@ -27,16 +25,16 @@ public class UltrasoundResult
     public double? FlatteningRatio { get; set; }
     [Column("circularity")]
     public double? Circularity { get; set; }
-    [Column("clinical_record_id")]
-    public int ClinicalRecordId { get; set; }
+    [Column("hand_result_id")]
+    public int HandResultId { get; set; }
     [Column("confidence")]
     public double? Confidence { get; set; }
     [Column("contour_points", TypeName = "jsonb")]
     public List<ContourPoint>? ContourPoints { get; set; }
     [Column("status")]
     public String? Status { get; set; }
-    [ForeignKey(nameof(ClinicalRecordId))]
-    public ClinicalRecord? ClinicalRecord { get; set; }
+    [ForeignKey(nameof(HandResultId))]
+    public HandResult? HandResult { get; set; }
     
     
 }
