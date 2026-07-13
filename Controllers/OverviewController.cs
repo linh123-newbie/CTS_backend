@@ -38,28 +38,30 @@ public class OverviewController : ControllerBase
         // 2. Số NCS chưa xử lý
         var pendingNcsCount = await (
             from nr in _context.NcsResults
-            join cr in _context.ClinicalRecords
-                on nr.ClinicalRecordId equals cr.Id
-            where cr.DoctorId == staffId
+            join cr in _context.HandResults on nr.HandResultId equals cr.Id
+            join cl in _context.ClinicalRecords on cr.ClinicalRecordId equals cl.Id
+            where cl.DoctorId == staffId
                   && nr.Status == "Chưa xử lý"
             select nr
         ).CountAsync();
 
         // 3. Số siêu âm chưa xử lý
         var pendingUltrasoundCount = await (
-            from ur in _context.UltrasoundResults
-            join cr in _context.ClinicalRecords
-                on ur.ClinicalRecordId equals cr.Id
-            where cr.DoctorId == staffId
-                  && ur.Status == "Chưa xử lý"
-            select ur
+            from u in _context.UltrasoundResults
+            join cu in _context.HandResults on u.HandResultId equals cu.Id
+            join clu in _context.ClinicalRecords on cu.ClinicalRecordId equals clu.Id
+            where clu.DoctorId == staffId
+                  && u.Status == "Chưa xử lý"
+            select u
         ).CountAsync();
 
         // 4. Số ca khám chưa có kết luận/result
-        var emptyClinicalResultCount = await _context.ClinicalRecords
-            .Where(cr => cr.DoctorId == staffId)
-            .Where(cr => cr.Result == null || cr.Result == "")
-            .CountAsync();
+        var emptyClinicalResultCount = await (
+         from c in _context.ClinicalRecords
+         join h in _context.HandResults on c.Id equals h.ClinicalRecordId
+         where c.DoctorId == staffId && (h.Result == null || h.Result == "")
+         select c
+        ).CountAsync();
 
         return Ok(new
         {
@@ -70,19 +72,31 @@ public class OverviewController : ControllerBase
         });
     }
 
-    private string GetOverallSessionStatus(List<string> statuses)
+    private static string GetOverallSessionStatus(
+    IEnumerable<string?> statuses)
     {
-        if (statuses == null || statuses.Count == 0)
+        var values = statuses
+            .Select(FormatStatus)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .ToList();
+
+        if (values.Count == 0)
         {
             return "Chưa xử lý";
         }
 
-        if (statuses.All(x => x == "Hoàn tất" || x == "Đã xác nhận"))
+        if (values.All(x => x == "Đã xử lý"))
         {
             return "Hoàn tất";
         }
 
-        if (statuses.Any(x => x == "Đang xử lý" || x == "Chờ xác nhận"))
+        if (values.Any(x => x == "Chờ xác nhận"))
+        {
+            return "Chờ xác nhận";
+        }
+
+        if (values.Any(x => x == "Đang xử lý"))
         {
             return "Đang xử lý";
         }
@@ -100,7 +114,8 @@ public class OverviewController : ControllerBase
             from c in _context.ClinicalRecords
             join s in _context.Staffs on c.DoctorId equals s.Id
             join p in _context.Patients on c.PatientId equals p.Id
-            join n in _context.NcsResults on c.Id equals n.ClinicalRecordId
+            join h in _context.HandResults on c.Id equals h.ClinicalRecordId
+            join n in _context.NcsResults on h.Id equals n.HandResultId
             where s.UserId == doctorUserId
                   && c.Time >= today
                   && c.Time < tomorrow
@@ -112,15 +127,16 @@ public class OverviewController : ControllerBase
                 patientName = p.Name,
                 examType = "NCS",
                 status = n.Status,
-                handText = n.Hand == 1 ? "Tay phải" :
-                           n.Hand == 0 ? "Tay trái" : null
+                handText = h.Hand == 1 ? "Tay phải" :
+                           h.Hand == 0 ? "Tay trái" : null
             };
 
         var ultrasoundQuery =
             from c in _context.ClinicalRecords
             join s in _context.Staffs on c.DoctorId equals s.Id
             join p in _context.Patients on c.PatientId equals p.Id
-            join ur in _context.UltrasoundResults on c.Id equals ur.ClinicalRecordId
+            join h in _context.HandResults on c.Id equals h.ClinicalRecordId
+            join ur in _context.UltrasoundResults on h.Id equals ur.HandResultId
             where s.UserId == doctorUserId
                   && c.Time >= today
                   && c.Time < tomorrow
@@ -132,8 +148,8 @@ public class OverviewController : ControllerBase
                 patientName = p.Name,
                 examType = "Siêu âm",
                 status = ur.Status,
-                handText = ur.Hand == 1 ? "Tay phải" :
-                           ur.Hand == 0 ? "Tay trái" : null
+                handText = h.Hand == 1 ? "Tay phải" :
+                           h.Hand == 0 ? "Tay trái" : null
             };
 
         var rawData = await ncsQuery
@@ -151,28 +167,37 @@ public class OverviewController : ControllerBase
             .OrderByDescending(g => g.Key.time)
             .ThenBy(g => g.Key.patientId)
             .Select(g =>
-            {
-                var ncs = g.FirstOrDefault(x => x.examType == "NCS");
-                var ultrasound = g.FirstOrDefault(x => x.examType == "Siêu âm");
+{
+    var ncsHands = g
+        .Where(x => x.examType == "NCS")
+        .Select(x => x.handText)
+        .Where(x => x != null)
+        .Distinct()
+        .ToList();
 
-                var formattedStatuses = g
-                    .Select(x => FormatStatus(x.status))
-                    .ToList();
+    var ultrasoundHands = g
+        .Where(x => x.examType == "Siêu âm")
+        .Select(x => x.handText)
+        .Where(x => x != null)
+        .Distinct()
+        .ToList();
 
-                return new
-                {
-                    clinicalRecordId = g.Key.clinicalRecordId,
-                    time = g.Key.time?.ToString("HH:mm"),
-                    patientId = g.Key.patientId,
-                    patientCode = $"BN{g.Key.patientId:D5}",
-                    patientName = g.Key.patientName,
+    return new
+    {
+        clinicalRecordId = g.Key.clinicalRecordId,
+        time = g.Key.time?.ToString("HH:mm"),
+        patientId = g.Key.patientId,
+        patientCode = $"BN{g.Key.patientId:D5}",
+        patientName = g.Key.patientName,
 
-                    ncs = ncs?.handText,
-                    ultrasound = ultrasound?.handText,
+        ncs = ncsHands,
+        ultrasound = ultrasoundHands,
 
-                    // status = GetOverallSessionStatus(formattedStatuses)
-                };
-            })
+        status = GetOverallSessionStatus(
+            g.Select(x => x.status)
+        )
+    };
+})
             .ToList();
 
         return Ok(data);
@@ -206,29 +231,36 @@ public class OverviewController : ControllerBase
         }
 
         // 1. Ca khám chưa có kết luận/result
-        var emptyClinicalResultCount = await _context.ClinicalRecords
-            .CountAsync(cr =>
-                staffIds.Contains(cr.DoctorId) &&
-                (cr.Result == null || cr.Result == "")
-            );
+        var emptyClinicalResultCount = await (
+    from h in _context.HandResults.AsNoTracking()
+    join cr in _context.ClinicalRecords.AsNoTracking()
+        on h.ClinicalRecordId equals cr.Id
+    where staffIds.Contains(cr.DoctorId)
+          && (h.Result == null || h.Result == "")
+    select cr.Id
+)
+.Distinct()
+.CountAsync();
 
         // 2. NCS chờ xác nhận
         var confirmNcsCount = await (
             from nr in _context.NcsResults
+            join h in _context.HandResults on nr.HandResultId equals h.Id
             join cr in _context.ClinicalRecords
-                on nr.ClinicalRecordId equals cr.Id
+                on h.ClinicalRecordId equals cr.Id
             where staffIds.Contains(cr.DoctorId)
-                  && nr.Status == "CONFIRM"
+                  && nr.Status == "Đang xử lý"
             select nr
         ).CountAsync();
 
         // 3. Siêu âm chờ xác nhận
         var confirmUltrasoundCount = await (
             from ur in _context.UltrasoundResults
+            join h in _context.HandResults on ur.HandResultId equals h.Id
             join cr in _context.ClinicalRecords
-                on ur.ClinicalRecordId equals cr.Id
+                on h.ClinicalRecordId equals cr.Id
             where staffIds.Contains(cr.DoctorId)
-                  && ur.Status == "CONFIRM"
+                  && ur.Status == "Đang xử lý"
             select ur
         ).CountAsync();
 
@@ -255,10 +287,11 @@ public class OverviewController : ControllerBase
             from c in _context.ClinicalRecords
             join s in _context.Staffs on c.DoctorId equals s.Id
             join p in _context.Patients on c.PatientId equals p.Id
-            join n in _context.NcsResults on c.Id equals n.ClinicalRecordId
+            join h in _context.HandResults on c.Id equals h.ClinicalRecordId
+            join n in _context.NcsResults on h.Id equals n.HandResultId
             where s.UserId == doctorUserId
-                  && c.Result != null
-                  && c.Result.Trim() != ""
+                  && h.Result != null
+                  && h.Result.Trim() != ""
             select new
             {
                 time = c.Time,
@@ -266,20 +299,21 @@ public class OverviewController : ControllerBase
                 patientName = p.Name,
                 examType = "NCS",
                 label = n.Label,
-                hand = (int?)n.Hand,
-                handText = n.Hand == 1 ? "Tay phải" :
-                           n.Hand == 0 ? "Tay trái" : null,
-                clinicalResult = c.Result
+                hand = (int?)h.Hand,
+                handText = h.Hand == 1 ? "Tay phải" :
+                           h.Hand == 0 ? "Tay trái" : null,
+                clinicalResult = h.Result
             };
 
         var ultrasoundQuery =
             from c in _context.ClinicalRecords
             join s in _context.Staffs on c.DoctorId equals s.Id
             join p in _context.Patients on c.PatientId equals p.Id
-            join ur in _context.UltrasoundResults on c.Id equals ur.ClinicalRecordId
+            join h in _context.HandResults on c.Id equals h.ClinicalRecordId
+            join ur in _context.UltrasoundResults on h.Id equals ur.HandResultId
             where s.UserId == doctorUserId
-                  && c.Result != null
-                  && c.Result.Trim() != ""
+                  && h.Result != null
+                  && h.Result.Trim() != ""
             select new
             {
                 time = c.Time,
@@ -287,10 +321,10 @@ public class OverviewController : ControllerBase
                 patientName = p.Name,
                 examType = "Siêu âm",
                 label = ur.Label,
-                hand = (int?)ur.Hand,
-                handText = ur.Hand == 1 ? "Tay phải" :
-                           ur.Hand == 0 ? "Tay trái" : null,
-                clinicalResult = c.Result
+                hand = (int?)h.Hand,
+                handText = h.Hand == 1 ? "Tay phải" :
+                           h.Hand == 0 ? "Tay trái" : null,
+                clinicalResult = h.Result
             };
 
         var rawData = await ncsQuery
