@@ -278,77 +278,77 @@ public class OverviewController : ControllerBase
     [FromQuery] int doctorUserId,
     [FromQuery] int take = 10)
     {
+        if (doctorUserId <= 0)
+        {
+            return BadRequest(new
+            {
+                message = "Missing doctorUserId."
+            });
+        }
+
         if (take <= 0)
         {
             take = 10;
         }
 
-        var ncsQuery =
-            from c in _context.ClinicalRecords
-            join s in _context.Staffs on c.DoctorId equals s.Id
-            join p in _context.Patients on c.PatientId equals p.Id
-            join h in _context.HandResults on c.Id equals h.ClinicalRecordId
-            join n in _context.NcsResults on h.Id equals n.HandResultId
+        var rows = await (
+            from c in _context.ClinicalRecords.AsNoTracking()
+
+            join s in _context.Staffs.AsNoTracking()
+                on c.DoctorId equals s.Id
+
+            join p in _context.Patients.AsNoTracking()
+                on c.PatientId equals p.Id
+
+            join h in _context.HandResults.AsNoTracking()
+                on c.Id equals h.ClinicalRecordId
+
             where s.UserId == doctorUserId
                   && h.Result != null
                   && h.Result.Trim() != ""
+
             select new
             {
-                id = c.Id,
+                clinicalRecordId = c.Id,
                 time = c.Time,
                 patientId = p.Id,
                 patientName = p.Name,
-                examType = "NCS",
-                label = n.Label,
-                hand = (int?)h.Hand,
-                handText = h.Hand == 1 ? "Tay phải" :
-                           h.Hand == 0 ? "Tay trái" : null,
-                clinicalResult = h.Result
-            };
 
-        var ultrasoundQuery =
-            from c in _context.ClinicalRecords
-            join s in _context.Staffs on c.DoctorId equals s.Id
-            join p in _context.Patients on c.PatientId equals p.Id
-            join h in _context.HandResults on c.Id equals h.ClinicalRecordId
-            join ur in _context.UltrasoundResults on h.Id equals ur.HandResultId
-            where s.UserId == doctorUserId
-                  && h.Result != null
-                  && h.Result.Trim() != ""
-            select new
+                handResultId = h.Id,
+                hand = h.Hand,
+                result = h.Result
+            }
+        ).ToListAsync();
+
+        var sessions = rows
+            .GroupBy(x => new
             {
-                id = c.Id,
-                time = c.Time,
-                patientId = p.Id,
-                patientName = p.Name,
-                examType = "Siêu âm",
-                label = ur.Label,
-                hand = (int?)h.Hand,
-                handText = h.Hand == 1 ? "Tay phải" :
-                           h.Hand == 0 ? "Tay trái" : null,
-                clinicalResult = h.Result
-            };
+                x.clinicalRecordId,
+                x.time,
+                x.patientId,
+                x.patientName
+            })
+            .Select(group => new
+            {
+                id = group.Key.clinicalRecordId,
+                time = group.Key.time,
+                patientId = group.Key.patientId,
+                patientName = group.Key.patientName,
 
-        var rawData = await ncsQuery
-            .Concat(ultrasoundQuery)
+                finalResults = group
+                    .Select(x => new
+                    {
+                        handResultId = x.handResultId,
+                        hand = x.hand,
+                        result = x.result
+                    })
+                    .OrderBy(x => x.hand)
+                    .ToList()
+            })
             .OrderByDescending(x => x.time)
-            .ThenBy(x => x.patientId)
-            .ThenBy(x => x.examType)
-            .ThenBy(x => x.hand)
             .Take(take)
-            .ToListAsync();
+            .ToList();
 
-        var data = rawData.Select(x => new
-        {
-            id = x.id,
-            patientId = x.patientId,
-            name = x.patientName,
-            loaiKham = x.examType,
-            label = x.label,
-            hand = x.handText,
-            clinicalResult = x.clinicalResult
-        });
-
-        return Ok(data);
+        return Ok(sessions);
     }
 }
