@@ -294,6 +294,7 @@ public class OverviewController : ControllerBase
                   && h.Result.Trim() != ""
             select new
             {
+                id = c.Id,
                 time = c.Time,
                 patientId = p.Id,
                 patientName = p.Name,
@@ -316,6 +317,7 @@ public class OverviewController : ControllerBase
                   && h.Result.Trim() != ""
             select new
             {
+                id = c.Id,
                 time = c.Time,
                 patientId = p.Id,
                 patientName = p.Name,
@@ -338,6 +340,7 @@ public class OverviewController : ControllerBase
 
         var data = rawData.Select(x => new
         {
+            id = x.id,
             patientId = x.patientId,
             name = x.patientName,
             loaiKham = x.examType,
