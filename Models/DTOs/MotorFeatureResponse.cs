@@ -41,6 +41,12 @@ public class MotorMarker
 
     [JsonPropertyName("onset_y")]
     public double OnsetY { get; set; }
+
+    [JsonPropertyName("cross_x")]
+    public double CrossX { get; set; }
+
+    [JsonPropertyName("cross_y")]
+    public double CrossY { get; set; }
 }
 
 public class MotorFeatures
@@ -77,4 +83,70 @@ public class MotorFeatures
 
     [JsonPropertyName("e_left_slope")]
     public double? ELeftSlope { get; set; }
+
+    [JsonPropertyName("w_area")]
+    public double? WArea { get; set; }
+
+    [JsonPropertyName("e_area")]
+    public double? EArea { get; set; }
+
+    [JsonPropertyName("w_asa")]
+    public double? WAsa { get; set; }
+
+    [JsonPropertyName("e_asa")]
+    public double? EAsa { get; set; }
+
+    [JsonPropertyName("w_half_peak")]
+    public double? WHalfPeak { get; set; }
+
+    [JsonPropertyName("e_half_peak")]
+    public double? EHalfPeak { get; set; }
+
+    [JsonPropertyName("w_upper_ratio")]
+    public double? WUpperRatio { get; set; }
+
+    [JsonPropertyName("e_upper_ratio")]
+    public double? EUpperRatio { get; set; }
+
+    [JsonPropertyName("w_lower_ratio")]
+    public double? WLowerRatio { get; set; }
+
+    [JsonPropertyName("e_lower_ratio")]
+    public double? ELowerRatio { get; set; }
+
+    [JsonPropertyName("w_left_ratio")]
+    public double? WLeftRatio { get; set; }
+
+    [JsonPropertyName("e_left_ratio")]
+    public double? ELeftRatio { get; set; }
+
+    [JsonPropertyName("w_right_ratio")]
+    public double? WRightRatio { get; set; }
+
+    [JsonPropertyName("e_right_ratio")]
+    public double? ERightRatio { get; set; }
+
+    [JsonPropertyName("w_upper_lower")]
+    public double? WUpperLower { get; set; }
+
+    [JsonPropertyName("e_upper_lower")]
+    public double? EUpperLower { get; set; }
+
+    [JsonPropertyName("w_left_right")]
+    public double? WLeftRight { get; set; }
+
+    [JsonPropertyName("e_left_right")]
+    public double? ELeftRight { get; set; }
+
+    [JsonPropertyName("w_right_slope")]
+    public double? WRightSlope { get; set; }
+
+    [JsonPropertyName("e_right_slope")]
+    public double? ERightSlope { get; set; }
+
+    [JsonPropertyName("delta_Hm")]
+    public double? DeltaHm { get; set; }
+
+    [JsonPropertyName("delta_half_peak")]
+    public double? DeltaHalfPeak { get; set; }
 }
