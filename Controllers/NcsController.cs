@@ -231,7 +231,11 @@ public class NcsController : ControllerBase
             ["left_right"] = 10,
             ["left_slope (uV/ms)"] = 11,
             ["right_slope (uV/ms)"] = 12,
-            ["cv (m/s)"] = 14
+            ["cv (m/s)"] = 14,
+            ["upper_ratio"] = 27,
+            ["lower_ratio"] = 28,
+            ["left_ratio"] = 29,
+            ["right_ratio"] = 30,
         };
 
         Dictionary<string, JsonElement>? featureDict;
@@ -814,7 +818,11 @@ public class NcsController : ControllerBase
             ["left_right"] = 10,
             ["left_slope (uV/ms)"] = 11,
             ["right_slope (uV/ms)"] = 12,
-            ["cv (m/s)"] = 14
+            ["cv (m/s)"] = 14,
+            ["upper_ratio"] = 27,
+            ["lower_ratio"] = 28,
+            ["left_ratio"] = 29,
+            ["right_ratio"] = 30,
         };
 
         var rows = new List<NcsNerveValue>();
@@ -904,12 +912,47 @@ public class NcsController : ControllerBase
             ["HmD_takeoff"] = 18,
             ["HmP_takeoff"] = 19,
             ["delta_takeoff"] = 20,
+
             ["w_peak_lat"] = 21,
             ["w_duration"] = 22,
             ["w_left_slope"] = 23,
+
             ["e_peak_lat"] = 24,
             ["e_duration"] = 25,
             ["e_left_slope"] = 26,
+
+            ["w_area"] = 31,
+            ["e_area"] = 32,
+
+            ["w_asa"] = 33,
+            ["e_asa"] = 34,
+
+            ["w_half_peak"] = 35,
+            ["e_half_peak"] = 36,
+
+            ["w_upper_ratio"] = 37,
+            ["e_upper_ratio"] = 38,
+
+            ["w_lower_ratio"] = 39,
+            ["e_lower_ratio"] = 40,
+
+            ["w_left_ratio"] = 41,
+            ["e_left_ratio"] = 42,
+
+            ["w_right_ratio"] = 43,
+            ["e_right_ratio"] = 44,
+
+            ["w_upper_lower"] = 45,
+            ["e_upper_lower"] = 46,
+
+            ["w_left_right"] = 47,
+            ["e_left_right"] = 48,
+
+            ["w_right_slope"] = 49,
+            ["e_right_slope"] = 50,
+
+            ["delta_Hm"] = 51,
+            ["delta_half_peak"] = 52
         };
 
         Dictionary<string, JsonElement>? featureDict;
@@ -1211,12 +1254,47 @@ public class NcsController : ControllerBase
             ["HmD_takeoff"] = 18,
             ["HmP_takeoff"] = 19,
             ["delta_takeoff"] = 20,
+
             ["w_peak_lat"] = 21,
             ["w_duration"] = 22,
             ["w_left_slope"] = 23,
+
             ["e_peak_lat"] = 24,
             ["e_duration"] = 25,
             ["e_left_slope"] = 26,
+
+            ["w_area"] = 31,
+            ["e_area"] = 32,
+
+            ["w_asa"] = 33,
+            ["e_asa"] = 34,
+
+            ["w_half_peak"] = 35,
+            ["e_half_peak"] = 36,
+
+            ["w_upper_ratio"] = 37,
+            ["e_upper_ratio"] = 38,
+
+            ["w_lower_ratio"] = 39,
+            ["e_lower_ratio"] = 40,
+
+            ["w_left_ratio"] = 41,
+            ["e_left_ratio"] = 42,
+
+            ["w_right_ratio"] = 43,
+            ["e_right_ratio"] = 44,
+
+            ["w_upper_lower"] = 45,
+            ["e_upper_lower"] = 46,
+
+            ["w_left_right"] = 47,
+            ["e_left_right"] = 48,
+
+            ["w_right_slope"] = 49,
+            ["e_right_slope"] = 50,
+
+            ["delta_Hm"] = 51,
+            ["delta_half_peak"] = 52
         };
 
         var rows = new List<NcsNerveValue>();
