@@ -42,4 +42,9 @@ public class NcsMarkers
 
     [JsonPropertyName("offset_y")]
     public double? OffsetY { get; set; }
+    [JsonPropertyName("cross_x")]
+    public double? CrossX { get; set; }
+
+    [JsonPropertyName("cross_y")]
+    public double? CrossY { get; set; }
 }
