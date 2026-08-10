@@ -13,6 +13,14 @@ public class NcsSignalFile
     public int Id { get; set; }
     [Column("ncs_nerve_detail_id")]
     public int NcsNerveDetailId { get; set; }
+    [Column("onset_x")]
+    public double? OnsetX { get; set; }
+    [Column("peak_x")]
+    public double? PeakX { get; set; }
+    [Column("cross_x")]
+    public double? CrossX { get; set; }
+    [Column("offset_x")]
+    public double? OffsetX { get; set; }
     [Column("site")]
     public String? Site { get; set; }
     [Column("file_path")]

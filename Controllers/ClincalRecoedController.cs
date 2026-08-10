@@ -157,10 +157,6 @@ public class ClinicalRecordController : ControllerBase
                         Confidence = null,
                         ImageUrl = null,
                         MaskUrl = null,
-                        Csa = null,
-                        Perimeter = null,
-                        FlatteningRatio = null,
-                        Circularity = null,
                         ContourPoints = null,
                         Status = "Chưa xử lý"
                     })

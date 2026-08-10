@@ -14,7 +14,7 @@ public class UltrasoundController : ControllerBase
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IClinicalRecordResultService _clinicalRecordResultService;
 
-    public UltrasoundController(AppDbContext context, IHttpClientFactory httpClientFactory, HttpClient httpClient, IClinicalRecordResultService clinicalRecordResultService)
+    public UltrasoundController(AppDbContext context, IHttpClientFactory httpClientFactory, IClinicalRecordResultService clinicalRecordResultService)
     {
         _context = context;
         _httpClientFactory = httpClientFactory;
@@ -107,10 +107,6 @@ public class UltrasoundController : ControllerBase
 
         ultrasoundResult.ImageUrl = segmentResult.OriginalUrl ?? "";
         ultrasoundResult.MaskUrl = segmentResult.PredMaskUrl ?? "";
-        ultrasoundResult.Csa = segmentResult.CsaMm2;
-        ultrasoundResult.Perimeter = segmentResult.Perimeter;
-        ultrasoundResult.FlatteningRatio = segmentResult.FlatteningRatio;
-        ultrasoundResult.Circularity = segmentResult.Circularity;
         ultrasoundResult.ContourPoints = segmentResult.ContourPoints;
 
         // Nếu Status là string:
@@ -127,10 +123,6 @@ public class UltrasoundController : ControllerBase
             originalUrl = segmentResult.OriginalUrl,
             predMaskUrl = segmentResult.PredMaskUrl,
             markedUrl = segmentResult.MarkedUrl,
-            csaMm2 = segmentResult.CsaMm2,
-            perimeter = segmentResult.Perimeter,
-            flatteningRatio = segmentResult.FlatteningRatio,
-            circularity = segmentResult.Circularity,
             status = ultrasoundResult.Status,
             contourPoints = segmentResult.ContourPoints,
         });
@@ -156,14 +148,19 @@ public class UltrasoundController : ControllerBase
         {
             originalUrl = request.OriginalUrl,
             predMaskUrl = request.PredMaskUrl,
-            csaMm2 = request.CsaMm2,
-            perimeter = request.Perimeter,
-            flatteningRatio = request.FlatteningRatio,
-            circularity = request.Circularity,
-            // contour_points = request.ContourPoints
         });
 
+
         var json = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return StatusCode((int)response.StatusCode, new
+            {
+                message = "Python API result trả lỗi.",
+                detail = json
+            });
+        }
 
         var result =
         JsonSerializer.Deserialize<PythonUltrasoundResultResponse>(
@@ -181,15 +178,11 @@ public class UltrasoundController : ControllerBase
             });
         }
 
-        var finalLabel = result.FusionPrediction?.Label;
-        var finalConfidence = result.FusionPrediction?.Confidence ?? 0;
+        var finalLabel = result.ImagePrediction?.Label;
+        var finalConfidence = result.ImagePrediction?.Confidence ?? 0;
 
         ultrasoundResult.ImageUrl = request.OriginalUrl;
         ultrasoundResult.MaskUrl = request.PredMaskUrl;
-        ultrasoundResult.Csa = request.CsaMm2;
-        ultrasoundResult.Perimeter = request.Perimeter;
-        ultrasoundResult.FlatteningRatio = request.FlatteningRatio;
-        ultrasoundResult.Circularity = request.Circularity;
         ultrasoundResult.Label = finalLabel;
         ultrasoundResult.Confidence = finalConfidence;
         ultrasoundResult.ContourPoints = request.ContourPoints;
@@ -204,22 +197,17 @@ public class UltrasoundController : ControllerBase
 
             imageUrl = ultrasoundResult.ImageUrl,
             maskUrl = ultrasoundResult.MaskUrl,
-            csa = ultrasoundResult.Csa,
-            perimeter = ultrasoundResult.Perimeter,
-            flatteningRatio = ultrasoundResult.FlatteningRatio,
-            circularity = ultrasoundResult.Circularity,
             label = finalLabel,
             confidence = finalConfidence,
             contourPoints = ultrasoundResult.ContourPoints,
             status = ultrasoundResult.Status,
             imagePrediction = result.ImagePrediction,
-            featurePrediction = result.FeaturePrediction,
-            fusionPrediction = result.FusionPrediction
+
         });
     }
 
-    [HttpPost("cal_features")]
-    public async Task<ActionResult> CalCsa([FromBody] CalCsaRequest request)
+    [HttpPost("update_contour")]
+    public async Task<ActionResult> UpdateContour([FromBody] ContoursRequest request)
     {
         if (request == null)
         {
@@ -233,7 +221,7 @@ public class UltrasoundController : ControllerBase
         {
             return BadRequest(new
             {
-                message = "Cần ít nhất 3 điểm contour để tính CSA."
+                message = "Cần ít nhất 3 điểm contour."
             });
         }
 
@@ -254,7 +242,7 @@ public class UltrasoundController : ControllerBase
 
         try
         {
-            pythonResponse = await client.PostAsJsonAsync("cal_features", new
+            pythonResponse = await client.PostAsJsonAsync("update_contour", new
             {
                 originalUrl = ultrasoundResult.ImageUrl,
                 contours = request.Contours.Select(point => new
@@ -269,7 +257,7 @@ public class UltrasoundController : ControllerBase
         {
             return StatusCode(500, new
             {
-                message = "Không gọi được API cal_features bên Python.",
+                message = "Không gọi được API update_contour bên Python.",
                 error = ex.Message
             });
         }
@@ -280,12 +268,12 @@ public class UltrasoundController : ControllerBase
         {
             return StatusCode((int)pythonResponse.StatusCode, new
             {
-                message = "Python API cal_features trả lỗi.",
+                message = "Python API update_contour trả lỗi.",
                 detail = json
             });
         }
 
-        var calCsaResult = JsonSerializer.Deserialize<PythonCalCsaResponse>(
+        var contoursResponse = JsonSerializer.Deserialize<ContoursResponse>(
             json,
             new JsonSerializerOptions
             {
@@ -293,7 +281,7 @@ public class UltrasoundController : ControllerBase
             }
         );
 
-        if (calCsaResult == null)
+        if (contoursResponse == null)
         {
             return StatusCode(500, new
             {
@@ -302,11 +290,7 @@ public class UltrasoundController : ControllerBase
             });
         }
 
-        ultrasoundResult.Csa = calCsaResult.CsaMm2;
-        ultrasoundResult.Perimeter = calCsaResult.Perimeter;
-        ultrasoundResult.FlatteningRatio = calCsaResult.FlatteningRatio;
-        ultrasoundResult.Circularity = calCsaResult.Circularity;
-        ultrasoundResult.MaskUrl = calCsaResult.PredMaskUrl;
+        ultrasoundResult.MaskUrl = contoursResponse.PredMaskUrl;
         ultrasoundResult.ContourPoints = request.Contours;
         // ultrasoundResult.Status = "SEGMENTED";
 
@@ -316,11 +300,7 @@ public class UltrasoundController : ControllerBase
         {
             // success = true,
             // ultrasoundResultId = ultrasoundResult.Id,
-            csaMm2 = calCsaResult.CsaMm2,
-            perimeter = calCsaResult.Perimeter,
-            flatteningRatio = calCsaResult.FlatteningRatio,
-            circularity = calCsaResult.Circularity,
-            pred_mask_url = calCsaResult.PredMaskUrl,
+            pred_mask_url = contoursResponse.PredMaskUrl,
             contourPoints = request.Contours,
             // areaPx = calCsaResult.AreaPx,
             // status = ultrasoundResult.Status
@@ -353,7 +333,7 @@ public class UltrasoundController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        
+
 
         var handResultUpdated =
             await _clinicalRecordResultService.UpdateIfReadyAsync(
@@ -363,7 +343,7 @@ public class UltrasoundController : ControllerBase
         return Ok(new
         {
             message = "Confirm successfully.",
-           
+
         });
     }
 
@@ -386,10 +366,6 @@ public class UltrasoundController : ControllerBase
             ultrasound.Id,
             ultrasound.ImageUrl,
             ultrasound.MaskUrl,
-            ultrasound.Csa,
-            ultrasound.Circularity,
-            ultrasound.FlatteningRatio,
-            ultrasound.Perimeter,
             ultrasound.Label,
             ultrasound.Confidence,
             ultrasound.Status,

@@ -18,15 +18,6 @@ public class UltrasoundSegmentResponse
     [JsonPropertyName("marked_url")]
     public string? MarkedUrl { get; set; }
 
-    [JsonPropertyName("csa_mm2")]
-    public double? CsaMm2 { get; set; }
-    [JsonPropertyName("perimeter")]
-    public double? Perimeter { get; set; }
-    [JsonPropertyName("flattening_ratio")]
-    public double? FlatteningRatio { get; set; }
-    [JsonPropertyName("circularity")]
-    public double? Circularity { get; set; }
-
     [JsonPropertyName("contour_points")]
     public List<ContourPoint>? ContourPoints { get; set; }
 
@@ -52,11 +43,6 @@ public class PythonUltrasoundResultResponse
     [JsonPropertyName("image_prediction")]
     public PredictionDto? ImagePrediction { get; set; }
 
-    [JsonPropertyName("feature_prediction")]
-    public PredictionDto? FeaturePrediction { get; set; }
-
-    [JsonPropertyName("fusion_prediction")]
-    public PredictionDto? FusionPrediction { get; set; }
 }
 
 public class PredictionDto
