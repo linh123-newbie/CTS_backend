@@ -479,7 +479,7 @@ public class NcsController : ControllerBase
     }
     [HttpPost("calculate_motor_features")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> CalculateMotorFeatures([FromForm] double onset_x1, [FromForm] double peak_x1, [FromForm] double onset_x2, [FromForm] double peak_x2, [FromForm] String scaled_signal_url1, [FromForm] String scaled_signal_url2)
+    public async Task<IActionResult> CalculateMotorFeatures([FromForm] double onset_x1, [FromForm] double peak_x1, [FromForm] double cross_x1, [FromForm] double offset_x1, [FromForm] double onset_x2, [FromForm] double peak_x2, [FromForm] double cross_x2, [FromForm] double offset_x2, [FromForm] String scaled_signal_url1, [FromForm] String scaled_signal_url2)
     {
 
         if (peak_x1 < onset_x1 || peak_x2 < onset_x2)
@@ -507,12 +507,16 @@ public class NcsController : ControllerBase
         var markersJson1 = JsonSerializer.Serialize(new
         {
             onset_x = onset_x1,
-            peak_x = peak_x1
+            peak_x = peak_x1,
+            cross_x = cross_x1,
+            offset_x = offset_x1,
         });
         var markersJson2 = JsonSerializer.Serialize(new
         {
             onset_x = onset_x2,
-            peak_x = peak_x2
+            peak_x = peak_x2,
+            cross_x = cross_x2,
+            offset_x = offset_x2,
         });
 
         formData.Add(new StringContent(markersJson1), "markers1");
