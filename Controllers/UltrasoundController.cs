@@ -108,6 +108,8 @@ public class UltrasoundController : ControllerBase
         ultrasoundResult.ImageUrl = segmentResult.OriginalUrl ?? "";
         ultrasoundResult.MaskUrl = segmentResult.PredMaskUrl ?? "";
         ultrasoundResult.ContourPoints = segmentResult.ContourPoints;
+        ultrasoundResult.Label = null;
+        ultrasoundResult.Confidence = null;
 
         // Nếu Status là string:
         ultrasoundResult.Status = "Đang xử lý";
@@ -122,7 +124,7 @@ public class UltrasoundController : ControllerBase
             ultrasoundResultId = ultrasoundResult.Id,
             originalUrl = segmentResult.OriginalUrl,
             predMaskUrl = segmentResult.PredMaskUrl,
-            markedUrl = segmentResult.MarkedUrl,
+            // markedUrl = segmentResult.MarkedUrl,
             status = ultrasoundResult.Status,
             contourPoints = segmentResult.ContourPoints,
         });
@@ -285,13 +287,16 @@ public class UltrasoundController : ControllerBase
         {
             return StatusCode(500, new
             {
-                message = "Không parse được response từ Python cal_features.",
+                message = "Không parse được response từ Python update_contour.",
                 raw = json
             });
         }
 
         ultrasoundResult.MaskUrl = contoursResponse.PredMaskUrl;
         ultrasoundResult.ContourPoints = request.Contours;
+        ultrasoundResult.Label = null;
+        ultrasoundResult.Confidence = null;
+        // ultrasoundResult.Status = "Đang xử lý";
         // ultrasoundResult.Status = "SEGMENTED";
 
         await _context.SaveChangesAsync();

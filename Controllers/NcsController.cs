@@ -397,6 +397,10 @@ public class NcsController : ControllerBase
             Site = "sensory",
             FilePath = result.ScaledSignal,
             NcsNerveDetailId = ncsNerveDetail.Id,
+            OnsetX = result.Markers?.OnsetX,
+            PeakX = result.Markers?.PeakX,
+            CrossX = result.Markers?.CrossX,
+            OffsetX = result.Markers?.OffsetX,
         };
         _context.NcsSignalFiles.Add(ncsSignalFile);
         await _context.SaveChangesAsync();
@@ -410,8 +414,12 @@ public class NcsController : ControllerBase
     }
     [HttpPost("calculate_features")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> CalculateFeatures([FromQuery] double distance, [FromForm] double onset_x, [FromForm] double peak_x, [FromForm] double cross_x, [FromForm] double offset_x, string scaled_signal_url)
+    public async Task<IActionResult> CalculateFeatures([FromQuery] int ncsNerveDetailId, [FromQuery] double distance, [FromForm] double onset_x, [FromForm] double peak_x, [FromForm] double cross_x, [FromForm] double offset_x, string scaled_signal_url)
     {
+        if (ncsNerveDetailId <= 0)
+        {
+            return BadRequest("Thiếu ncsNerveDetailId.");
+        }
         if (distance <= 0)
         {
             return BadRequest("Khoảng cách không hợp lệ.");
@@ -473,14 +481,39 @@ public class NcsController : ControllerBase
         {
             return StatusCode(500, "Không đọc được kết quả.");
         }
+
+        var signalFile = await _context.NcsSignalFiles
+    .FirstOrDefaultAsync(x =>
+        x.NcsNerveDetailId == ncsNerveDetailId &&
+        x.Site == "sensory"
+    );
+
+        if (signalFile != null)
+        {
+            signalFile.OnsetX = onset_x;
+            signalFile.PeakX = peak_x;
+            signalFile.CrossX = cross_x;
+            signalFile.OffsetX = offset_x;
+        }
+
+        await SaveSensoryFeatureValuesAsync(
+            ncsNerveDetailId,
+            result.Features
+        );
+
+        await _context.SaveChangesAsync();
         result.Distance = distance;
 
         return Ok(result);
     }
     [HttpPost("calculate_motor_features")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> CalculateMotorFeatures([FromForm] double onset_x1, [FromForm] double peak_x1, [FromForm] double cross_x1, [FromForm] double offset_x1, [FromForm] double onset_x2, [FromForm] double peak_x2, [FromForm] double cross_x2, [FromForm] double offset_x2, [FromForm] String scaled_signal_url1, [FromForm] String scaled_signal_url2)
+    public async Task<IActionResult> CalculateMotorFeatures([FromForm] int ncsNerveDetailId, [FromForm] double onset_x1, [FromForm] double peak_x1, [FromForm] double cross_x1, [FromForm] double offset_x1, [FromForm] double onset_x2, [FromForm] double peak_x2, [FromForm] double cross_x2, [FromForm] double offset_x2, [FromForm] String scaled_signal_url1, [FromForm] String scaled_signal_url2)
     {
+        if (ncsNerveDetailId <= 0)
+        {
+            return BadRequest("Thiếu ncsNerveDetailId.");
+        }
 
         if (peak_x1 < onset_x1 || peak_x2 < onset_x2)
         {
@@ -544,6 +577,43 @@ public class NcsController : ControllerBase
         {
             return StatusCode(500, "Không đọc được kết quả.");
         }
+        
+
+        var wristSignal = await _context.NcsSignalFiles
+    .FirstOrDefaultAsync(x =>
+        x.NcsNerveDetailId == ncsNerveDetailId &&
+        x.Site == "wrist"
+    );
+
+        var elbowSignal = await _context.NcsSignalFiles
+            .FirstOrDefaultAsync(x =>
+                x.NcsNerveDetailId == ncsNerveDetailId &&
+                x.Site == "elbow"
+            );
+
+        if (wristSignal == null || elbowSignal == null)
+        {
+            return NotFound("Không tìm thấy signal motor.");
+        }
+
+        wristSignal.OnsetX = onset_x1;
+        wristSignal.PeakX = peak_x1;
+        wristSignal.CrossX = cross_x1;
+        wristSignal.OffsetX = offset_x1;
+
+        elbowSignal.OnsetX = onset_x2;
+        elbowSignal.PeakX = peak_x2;
+        elbowSignal.CrossX = cross_x2;
+        elbowSignal.OffsetX = offset_x2;
+
+        await SaveMotorFeatureValuesAsync(
+            ncsNerveDetailId,
+            result.Features
+        );
+
+        await _context.SaveChangesAsync();
+
+
         return Ok(result);
     }
 
@@ -793,115 +863,11 @@ public class NcsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        Dictionary<string, JsonElement>? featureDict;
-
-        try
-        {
-            featureDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
-                featuresJson,
-                new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                }
-            );
-        }
-        catch
-        {
-            return BadRequest("FeaturesJson không hợp lệ.");
-        }
-
-        if (featureDict == null || featureDict.Count == 0)
-        {
-            return BadRequest("FeaturesJson rỗng.");
-        }
-
-        var featureIdMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["onset_lat"] = 2,
-            ["peak_lat (ms)"] = 3,
-            ["hs (uV)"] = 4,
-            ["rise_time (ms)"] = 5,
-            ["as (uV.ms)"] = 6,
-            ["asa (uV.ms)"] = 7,
-            ["half_peak (ms)"] = 8,
-            ["upper_lower"] = 9,
-            ["left_right"] = 10,
-            ["left_slope (uV/ms)"] = 11,
-            ["right_slope (uV/ms)"] = 12,
-            ["cv (m/s)"] = 14,
-            ["upper_ratio"] = 27,
-            ["lower_ratio"] = 28,
-            ["left_ratio"] = 29,
-            ["right_ratio"] = 30,
-        };
-
-        var rows = new List<NcsNerveValue>();
-
-        foreach (var item in featureDict)
-        {
-            if (!featureIdMap.TryGetValue(item.Key, out var featureId))
-            {
-                continue;
-            }
-
-            double value;
-
-            if (item.Value.ValueKind == JsonValueKind.Number)
-            {
-                value = item.Value.GetDouble();
-            }
-            else if (
-                item.Value.ValueKind == JsonValueKind.String &&
-                double.TryParse(
-                    item.Value.GetString(),
-                    NumberStyles.Any,
-                    CultureInfo.InvariantCulture,
-                    out var parsedValue
-                )
-            )
-            {
-                value = parsedValue;
-            }
-            else
-            {
-                continue;
-            }
-
-            if (!double.IsFinite(value))
-            {
-                continue;
-            }
-
-            rows.Add(new NcsNerveValue
-            {
-                NcsNerveDetailId = ncsNerveDetail.Id,
-                NcsFeatureId = featureId,
-                Value = value
-            });
-        }
-
-        if (rows.Count > 0)
-        {
-            var oldValues = await _context.NcsNerveValues
-                .Where(x => x.NcsNerveDetailId == ncsNerveDetail.Id)
-                .ToListAsync();
-
-            if (oldValues.Count > 0)
-            {
-                _context.NcsNerveValues.RemoveRange(oldValues);
-                await _context.SaveChangesAsync();
-            }
-
-            _context.NcsNerveValues.AddRange(rows);
-            await _context.SaveChangesAsync();
-        }
-
 
         return Ok(new
         {
             prediction = predictResult,
             ncsNerveDetailId = ncsNerveDetail.Id,
-            savedFeatureValueCount = rows.Count,
         });
     }
 
@@ -1118,6 +1084,10 @@ public class NcsController : ControllerBase
             Site = "wrist",
             FilePath = result.A1SignalUrl,
             NcsNerveDetailId = ncsNerveDetail.Id,
+            OnsetX = result.Markers1?.OnsetX,
+            PeakX = result.Markers1?.PeakX,
+            CrossX = result.Markers1?.CrossX,
+            OffsetX = result.Markers1?.OffsetX,
         };
         _context.NcsSignalFiles.Add(ncsSignalFile1);
 
@@ -1126,6 +1096,10 @@ public class NcsController : ControllerBase
             Site = "elbow",
             FilePath = result.A2SignalUrl,
             NcsNerveDetailId = ncsNerveDetail.Id,
+            OnsetX = result.Markers2?.OnsetX,
+            PeakX = result.Markers2?.PeakX,
+            CrossX = result.Markers2?.CrossX,
+            OffsetX = result.Markers2?.OffsetX,
         };
         _context.NcsSignalFiles.Add(ncsSignalFile2);
         await _context.SaveChangesAsync();
@@ -1236,144 +1210,10 @@ public class NcsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        Dictionary<string, JsonElement>? featureDict;
-        try
-        {
-            featureDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
-                featuresJson,
-                new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                }
-            );
-        }
-        catch
-        {
-            return BadRequest("FeaturesJson không hợp lệ.");
-        }
-
-        if (featureDict == null || featureDict.Count == 0)
-        {
-            return BadRequest("FeaturesJson rỗng.");
-        }
-
-        var featureIdMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["HmD"] = 16,
-            ["HmP"] = 17,
-            ["HmD_takeoff"] = 18,
-            ["HmP_takeoff"] = 19,
-            ["delta_takeoff"] = 20,
-
-            ["w_peak_lat"] = 21,
-            ["w_duration"] = 22,
-            ["w_left_slope"] = 23,
-
-            ["e_peak_lat"] = 24,
-            ["e_duration"] = 25,
-            ["e_left_slope"] = 26,
-
-            ["w_area"] = 31,
-            ["e_area"] = 32,
-
-            ["w_asa"] = 33,
-            ["e_asa"] = 34,
-
-            ["w_half_peak"] = 35,
-            ["e_half_peak"] = 36,
-
-            ["w_upper_ratio"] = 37,
-            ["e_upper_ratio"] = 38,
-
-            ["w_lower_ratio"] = 39,
-            ["e_lower_ratio"] = 40,
-
-            ["w_left_ratio"] = 41,
-            ["e_left_ratio"] = 42,
-
-            ["w_right_ratio"] = 43,
-            ["e_right_ratio"] = 44,
-
-            ["w_upper_lower"] = 45,
-            ["e_upper_lower"] = 46,
-
-            ["w_left_right"] = 47,
-            ["e_left_right"] = 48,
-
-            ["w_right_slope"] = 49,
-            ["e_right_slope"] = 50,
-
-            ["delta_Hm"] = 51,
-            ["delta_half_peak"] = 52
-        };
-
-        var rows = new List<NcsNerveValue>();
-
-        foreach (var item in featureDict)
-        {
-            if (!featureIdMap.TryGetValue(item.Key, out var featureId))
-            {
-                continue;
-            }
-            double value;
-
-            if (item.Value.ValueKind == JsonValueKind.Number)
-            {
-                value = item.Value.GetDouble();
-            }
-            else if (
-                item.Value.ValueKind == JsonValueKind.String &&
-                double.TryParse(
-                    item.Value.GetString(),
-                    NumberStyles.Any,
-                    CultureInfo.InvariantCulture,
-                    out var parsedValue
-                )
-            )
-            {
-                value = parsedValue;
-            }
-            else
-            {
-                continue;
-            }
-            if (!double.IsFinite(value))
-            {
-                continue;
-            }
-
-            rows.Add(new NcsNerveValue
-            {
-                NcsNerveDetailId = ncsNerveDetail.Id,
-                NcsFeatureId = featureId,
-                Value = value
-            });
-
-
-        }
-
-        if (rows.Count > 0)
-        {
-            var oldValues = await _context.NcsNerveValues
-                .Where(x => x.NcsNerveDetailId == ncsNerveDetail.Id)
-                .ToListAsync();
-
-            if (oldValues.Count > 0)
-            {
-                _context.NcsNerveValues.RemoveRange(oldValues);
-                await _context.SaveChangesAsync();
-            }
-
-            _context.NcsNerveValues.AddRange(rows);
-            await _context.SaveChangesAsync();
-        }
-
-
         return Ok(new
         {
             prediction = predictResult,
             ncsNerveDetailId = ncsNerveDetail.Id,
-            savedFeatureValueCount = rows.Count,
         });
 
     }
