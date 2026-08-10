@@ -119,9 +119,9 @@ public class NcsController : ControllerBase
     }
 
     [HttpGet("getDetailNerve")]
-    public async Task<ActionResult> GetNerveDetail([FromQuery] int ncsNerveDetailId)
+    public async Task<ActionResult> GetNerveDetail(
+    [FromQuery] int ncsNerveDetailId)
     {
-
         if (ncsNerveDetailId <= 0)
         {
             return BadRequest("Missing Id.");
@@ -134,24 +134,27 @@ public class NcsController : ControllerBase
                 id = n.Id,
                 label = n.AiLabel,
                 confidence = n.AiConfidence,
-                Confirm = n.Confirm,
-
+                confirm = n.Confirm
             })
             .ToListAsync();
 
         var signalFiles = await _context.NcsNerveDetails
-    .Where(n => n.Id == ncsNerveDetailId)
-    .Join(
-        _context.NcsSignalFiles,
-        nn => nn.Id,
-        ns => ns.NcsNerveDetailId,
-        (nn, ns) => new
-        {
-            site = ns.Site,
-            file_path = ns.FilePath
-        }
-    )
-    .ToListAsync();
+            .Where(n => n.Id == ncsNerveDetailId)
+            .Join(
+                _context.NcsSignalFiles,
+                nn => nn.Id,
+                ns => ns.NcsNerveDetailId,
+                (nn, ns) => new
+                {
+                    site = ns.Site,
+                    file_path = ns.FilePath,
+                    onset_x = ns.OnsetX,
+                    peak_x = ns.PeakX,
+                    cross_x = ns.CrossX,
+                    offset_x = ns.OffsetX
+                }
+            )
+            .ToListAsync();
 
         var signals = new List<object>();
 
@@ -167,45 +170,38 @@ public class NcsController : ControllerBase
             {
                 site = signal.site,
                 file_path = signal.file_path,
-                signal_values = await ReadSignalValuesFromUrlAsync(signal.file_path)
+
+                onset_x = signal.onset_x,
+                peak_x = signal.peak_x,
+                cross_x = signal.cross_x,
+                offset_x = signal.offset_x,
+
+                signal_values =
+                    await ReadSignalValuesFromUrlAsync(signal.file_path)
             });
         }
 
-        var features = from nn in _context.NcsNerveDetails
-                       join nsv in _context.NcsNerveValues on nn.Id equals nsv.NcsNerveDetailId
-                       join feature in _context.NcsFeatures on nsv.NcsFeatureId equals feature.Id
-                       where nn.Id == ncsNerveDetailId
-                       select new
-                       {
-                           Name = feature.Name,
-                           Value = nsv.Value,
-                           Unit = feature.Unit
-                       };
-        var data = new
+        var features = await (
+            from nn in _context.NcsNerveDetails
+            join nsv in _context.NcsNerveValues
+                on nn.Id equals nsv.NcsNerveDetailId
+            join feature in _context.NcsFeatures
+                on nsv.NcsFeatureId equals feature.Id
+            where nn.Id == ncsNerveDetailId
+            select new
+            {
+                name = feature.Name,
+                value = nsv.Value,
+                unit = feature.Unit
+            }
+        ).ToListAsync();
+
+        return Ok(new
         {
             label,
             signals,
             features
-        };
-
-        return Ok(data);
-    }
-
-    [HttpGet("getSignalResults")]
-    public async Task<ActionResult> GetSignalResults([FromQuery] int ncsResultId, [FromQuery] string measurementType)
-    {
-        var data = await _context.NcsNerveDetails
-            .Where(n => n.NcsResultId == ncsResultId && n.MeasurementType == measurementType)
-            .OrderByDescending(n => n.Id)
-            .Select(n => new
-            {
-                id = n.Id,
-                label = n.AiLabel,
-                confidence = n.AiConfidence,
-            })
-            .ToListAsync();
-
-        return Ok(data);
+        });
     }
 
     private async Task<int> SaveSensoryFeatureValuesAsync(
@@ -577,7 +573,7 @@ public class NcsController : ControllerBase
         {
             return StatusCode(500, "Không đọc được kết quả.");
         }
-        
+
 
         var wristSignal = await _context.NcsSignalFiles
     .FirstOrDefaultAsync(x =>
