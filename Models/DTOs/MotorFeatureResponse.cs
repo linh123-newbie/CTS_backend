@@ -47,6 +47,11 @@ public class MotorMarker
 
     [JsonPropertyName("cross_y")]
     public double CrossY { get; set; }
+    [JsonPropertyName("offset_x")]
+    public double OffsetX { get; set; }
+
+    [JsonPropertyName("offset_y")]
+    public double OffsetY { get; set; }
 }
 
 public class MotorFeatures
