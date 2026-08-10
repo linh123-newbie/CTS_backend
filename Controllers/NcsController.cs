@@ -410,7 +410,7 @@ public class NcsController : ControllerBase
     }
     [HttpPost("calculate_features")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> CalculateFeatures([FromQuery] double distance, [FromForm] double onset_x, [FromForm] double peak_x, string scaled_signal_url)
+    public async Task<IActionResult> CalculateFeatures([FromQuery] double distance, [FromForm] double onset_x, [FromForm] double peak_x, [FromForm] double cross_x, [FromForm] double offset_x, string scaled_signal_url)
     {
         if (distance <= 0)
         {
@@ -419,6 +419,10 @@ public class NcsController : ControllerBase
         if (peak_x < onset_x)
         {
             return BadRequest("Peak phải lớn hơn onset.");
+        }
+        if (offset_x < peak_x)
+        {
+            return BadRequest("Offset phải lớn hơn peak.");
         }
 
         if (string.IsNullOrWhiteSpace(scaled_signal_url))
@@ -438,7 +442,9 @@ public class NcsController : ControllerBase
         var markersJson = JsonSerializer.Serialize(new
         {
             onset_x,
-            peak_x
+            peak_x,
+            cross_x,
+            offset_x
         });
         formData.Add(new StringContent(markersJson, Encoding.UTF8, "application/json"), "markers");
         formData.Add(new StringContent(scaled_signal_url, Encoding.UTF8), "scaled_signal_url");
