@@ -204,6 +204,23 @@ public class NcsController : ControllerBase
         });
     }
 
+    [HttpGet("getSignalResults")]
+    public async Task<ActionResult> GetSignalResults([FromQuery] int ncsResultId, [FromQuery] string measurementType)
+    {
+        var data = await _context.NcsNerveDetails
+            .Where(n => n.NcsResultId == ncsResultId && n.MeasurementType == measurementType)
+            .OrderByDescending(n => n.Id)
+            .Select(n => new
+            {
+                id = n.Id,
+                label = n.AiLabel,
+                confidence = n.AiConfidence,
+            })
+            .ToListAsync();
+
+        return Ok(data);
+    }
+
     private async Task<int> SaveSensoryFeatureValuesAsync(
     int ncsNerveDetailId,
     object? features
@@ -393,10 +410,10 @@ public class NcsController : ControllerBase
             Site = "sensory",
             FilePath = result.ScaledSignal,
             NcsNerveDetailId = ncsNerveDetail.Id,
-            OnsetX = result.Markers?.OnsetX,
-            PeakX = result.Markers?.PeakX,
-            CrossX = result.Markers?.CrossX,
-            OffsetX = result.Markers?.OffsetX,
+            OnsetX = result.Markers.OnsetX,
+            PeakX = result.Markers.PeakX,
+            CrossX = result.Markers.CrossX,
+            OffsetX = result.Markers.OffsetX,
         };
         _context.NcsSignalFiles.Add(ncsSignalFile);
         await _context.SaveChangesAsync();
@@ -506,10 +523,7 @@ public class NcsController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CalculateMotorFeatures([FromForm] int ncsNerveDetailId, [FromForm] double onset_x1, [FromForm] double peak_x1, [FromForm] double cross_x1, [FromForm] double offset_x1, [FromForm] double onset_x2, [FromForm] double peak_x2, [FromForm] double cross_x2, [FromForm] double offset_x2, [FromForm] String scaled_signal_url1, [FromForm] String scaled_signal_url2)
     {
-        if (ncsNerveDetailId <= 0)
-        {
-            return BadRequest("Thiếu ncsNerveDetailId.");
-        }
+
 
         if (peak_x1 < onset_x1 || peak_x2 < onset_x2)
         {
@@ -573,7 +587,10 @@ public class NcsController : ControllerBase
         {
             return StatusCode(500, "Không đọc được kết quả.");
         }
-
+        if (ncsNerveDetailId <= 0)
+        {
+            return BadRequest("Thiếu ncsNerveDetailId.");
+        }
 
         var wristSignal = await _context.NcsSignalFiles
     .FirstOrDefaultAsync(x =>
@@ -858,7 +875,6 @@ public class NcsController : ControllerBase
         ncsNerveDetail.AiConfidence = predictResult?.Confidence;
 
         await _context.SaveChangesAsync();
-
 
         return Ok(new
         {
@@ -1205,6 +1221,8 @@ public class NcsController : ControllerBase
         ncsNerveDetail.AiConfidence = predictResult?.Confidence;
 
         await _context.SaveChangesAsync();
+
+
 
         return Ok(new
         {
