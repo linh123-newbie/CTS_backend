@@ -17,6 +17,87 @@ public class SelfAssessmentController : ControllerBase
         _context = context;
     }
 
+    private string GetPhysicalTestMessage(string name, bool isPositive)
+    {
+        var testName = name.ToLower();
+
+        if (testName.Contains("phalen"))
+        {
+            return isPositive
+                ? "Bạn nên hạn chế gập cổ tay lâu, nghỉ tay thường xuyên và theo dõi cảm giác tê hoặc châm chích"
+                : "Bình thường";
+        }
+
+        if (testName.Contains("tinel"))
+        {
+            return isPositive
+                ? "Nên tránh tì đè mạnh vùng cổ tay, giữ cổ tay ở tư thế trung tính và theo dõi triệu chứng lan xuống các ngón tay"
+                : "Bình thường";
+        }
+
+        if (testName.Contains("durkan"))
+        {
+            return isPositive
+                ? "Bạn nên giảm các hoạt động gây áp lực lên cổ tay, nghỉ ngơi hợp lý và cân nhắc tham khảo bác sĩ nếu triệu chứng kéo dài"
+                : "Bình thường";
+        }
+
+        return isPositive
+            ? $"{name} dương tính."
+            : $"{name} âm tính.";
+    }
+
+    [HttpGet("result")]
+    public async Task<ActionResult> FinalResult([FromQuery] int selfAssessmentId)
+    {
+        var assessmentExist = await _context.SelfAssessment
+            .AnyAsync(s => s.Id == selfAssessmentId);
+
+        if (!assessmentExist)
+        {
+            return NotFound(new
+            {
+                message = "Self AssessmentId not found"
+            });
+        }
+
+        var selfAssessment = await _context.SelfAssessment
+            .Where(s => s.Id == selfAssessmentId)
+            .Select(s => new
+            {
+                totalScore = s.Score,
+                level = s.Level
+            })
+            .FirstOrDefaultAsync();
+
+        var physicalDetails = await _context.AssessmentPhysicalDetail
+            .Where(s => s.SelfAssessmentId == selfAssessmentId)
+            .Include(s => s.PhysicalTest)
+            .Select(s => new
+            {
+                physicalTestId = s.PhysicalTestId,
+                name = s.PhysicalTest.Name,
+                isPositive = s.IsPositive
+            })
+            .ToListAsync();
+
+        var physicalResults = physicalDetails.Select(s => new
+        {
+            physicalTestId = s.physicalTestId,
+            name = s.name,
+            result = s.isPositive ? "Dương tính" : "Âm tính",
+            message = GetPhysicalTestMessage(s.name, s.isPositive)
+        }).ToList();
+
+        return Ok(new
+        {
+            totalScore = selfAssessment!.totalScore,
+            level = selfAssessment.level,
+            physicalResults = physicalResults
+        });
+    }
+
+
     [HttpPost("create_self_assessment")]
     public async Task<ActionResult> CreateSelfAssessment([FromQuery] int userId, [FromBody] CreateSelfAssessmentRequest request)
     {
@@ -80,7 +161,8 @@ public class SelfAssessmentController : ControllerBase
             {
                 selfAssessment.Level = "Bình thường";
 
-            }else if (totalScore <= 38)
+            }
+            else if (totalScore <= 38)
             {
                 selfAssessment.Level = "Nhẹ";
             }
