@@ -36,8 +36,6 @@ public class ClinicalRecordController : ControllerBase
             .Distinct()
             .ToHashSet();
 
-        // Mỗi tay chỉ tạo duy nhất một HandResult,
-        // kể cả tay đó có cả NCS và siêu âm.
         var allHands = distinctNcsHands
             .Union(distinctUltrasoundHands)
             .Distinct()
@@ -50,9 +48,8 @@ public class ClinicalRecordController : ControllerBase
             );
         }
 
-        // Giả sử quy ước:
-        // 0 = tay trái
-        // 1 = tay phải
+        // 0  tay trái
+        // 1  tay phải
         if (allHands.Any(hand => hand is not 0 and not 1))
         {
             return BadRequest(
