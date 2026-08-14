@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using CTS_backend.Data;
 using CTS_backend.DTOs;
 using CTS_backend.Models;
@@ -94,6 +95,99 @@ public class SelfAssessmentController : ControllerBase
             totalScore = selfAssessment!.totalScore,
             level = selfAssessment.level,
             physicalResults = physicalResults
+        });
+    }
+
+    [HttpPost("clinical_record_result")]
+    public async Task<ActionResult> ClinicalRecordResult([FromQuery] int userId)
+    {
+        var userExist = await _context.Users
+            .AnyAsync(u => u.Id == userId);
+
+        if (!userExist)
+        {
+            return NotFound(new
+            {
+                message = "User not found"
+            });
+        }
+
+        var count = await (
+            from p in _context.Patients
+            join c in _context.ClinicalRecords
+                on p.Id equals c.PatientId
+            where p.UserId == userId
+            select c.Id
+        ).CountAsync();
+
+
+        var latestRecord = await (
+            from p in _context.Patients
+            join c in _context.ClinicalRecords
+                on p.Id equals c.PatientId
+            where p.UserId == userId
+            orderby c.Time descending, c.Id descending
+            select new
+            {
+                c.Id,
+                c.DoctorId,
+                c.Time
+            }
+        ).FirstOrDefaultAsync();
+
+        var latestTime = latestRecord?.Time?.ToString("dd-MM-yyyy HH:mm");
+
+        if (latestRecord == null)
+        {
+            return NotFound(new
+            {
+                message = "Không có lần khám nào"
+            });
+        }
+
+
+        var allHandResults = await _context.HandResults
+    .Where(h => h.ClinicalRecordId == latestRecord.Id)
+    .Select(h => new
+    {
+        hand = h.Hand == 1 ? "Phải" : "Trái",
+
+        result = h.Result == "bt"
+            ? "Bình thường"
+            : h.Result == "nhe"
+                ? "Nhẹ"
+                : h.Result == "tb"
+                    ? "Trung bình"
+                    : h.Result == "nang"
+                        ? "Nặng"
+                        : h.Result
+    })
+    .ToListAsync();
+
+
+        string? doctorName = null;
+
+        if (allHandResults.Any() &&
+            allHandResults.All(h => h.result != null))
+        {
+            doctorName = await _context.Staffs
+                .Where(s => s.Id == latestRecord.DoctorId)
+                .Select(s => s.Name)
+                .FirstOrDefaultAsync();
+        }
+
+
+        var handResults = allHandResults
+            .Where(h => h.result != null)
+            .ToList();
+
+
+        return Ok(new
+        {
+            count,
+            latestTime = latestTime,
+            doctorName,
+            handResults
         });
     }
 
