@@ -69,7 +69,7 @@ public class ResultController : ControllerBase
             .Select(t => new
             {
                 t.Id,
-                time = t.Time.ToString("dd-MM-yyyy"),
+                time = t.Time.ToString("dd-MM-yyyy hh:mm"),
                 level = t.Level
             })
             .FirstOrDefaultAsync();
