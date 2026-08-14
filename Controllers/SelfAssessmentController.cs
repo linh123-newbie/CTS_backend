@@ -98,7 +98,7 @@ public class SelfAssessmentController : ControllerBase
         });
     }
 
-    [HttpPost("clinical_record_result")]
+    [HttpGet("clinical_record_result")]
     public async Task<ActionResult> ClinicalRecordResult([FromQuery] int userId)
     {
         var userExist = await _context.Users
