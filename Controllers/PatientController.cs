@@ -23,8 +23,8 @@ public class PatientController : ControllerBase
             return BadRequest("Dữ liệu không hợp lệ");
         if (string.IsNullOrWhiteSpace(request.Name))
             return BadRequest("Vui lòng nhập họ tên bệnh nhân");
-        
-        
+
+
         var patient = new Patients
         {
             Name = request.Name,
@@ -81,5 +81,35 @@ public class PatientController : ControllerBase
             age--;
 
         return age;
+    }
+
+    [HttpGet("info_patient")]
+    public async Task<ActionResult> InfoPatient([FromQuery] int userId)
+    {
+
+        var userExist = await _context.Users.AnyAsync(u => u.Id == userId);
+        if (!userExist)
+        {
+            return NotFound(new
+            {
+                message = "User not found",
+            });
+        }
+        var data = await _context.Patients
+        .Where(s => s.UserId == userId)
+        .Select(s => new
+        {
+            name = s.Name,
+            dateBirth = s.DateBirth,
+            gender = s.Gender,
+            phone = s.Phone,
+            weight = s.Weight,
+            address = s.Address,
+        })
+        .FirstOrDefaultAsync();
+
+
+        return Ok(data);
+
     }
 }

@@ -21,6 +21,8 @@ public class Patients
     public int? Gender { get; set; }
     [Column("phone")]
     public String? Phone { get; set; } = string.Empty;
+    [Column("address")]
+    public String? Address { get; set; } = string.Empty;
     [Column("weight")]
     public int? Weight { get; set; }
    
