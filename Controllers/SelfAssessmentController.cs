@@ -139,9 +139,12 @@ public class SelfAssessmentController : ControllerBase
 
         if (latestRecord == null)
         {
-            return NotFound(new
+            return Ok(new
             {
-                message = "Không có lần khám nào"
+                count = 0,
+                latestTime = (string?)null,
+                doctorName = (string?)null,
+                handResults = new List<object>()
             });
         }
 
@@ -182,16 +185,6 @@ public class SelfAssessmentController : ControllerBase
             .ToList();
 
 
-        if (latestRecord == null)
-        {
-            return Ok(new
-            {
-                count = 0,
-                latestTime = (string?)null,
-                doctorName = (string?)null,
-                handResults = new List<object>()
-            });
-        }
 
         return Ok(new
         {
