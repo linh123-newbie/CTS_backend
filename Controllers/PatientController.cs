@@ -99,6 +99,7 @@ public class PatientController : ControllerBase
         .Where(s => s.UserId == userId)
         .Select(s => new
         {
+            id = s.Id,
             name = s.Name,
             dateBirth = s.DateBirth,
             gender = s.Gender,
