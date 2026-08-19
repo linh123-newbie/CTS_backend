@@ -182,6 +182,17 @@ public class SelfAssessmentController : ControllerBase
             .ToList();
 
 
+        if (latestRecord == null)
+        {
+            return Ok(new
+            {
+                count = 0,
+                latestTime = (string?)null,
+                doctorName = (string?)null,
+                handResults = new List<object>()
+            });
+        }
+
         return Ok(new
         {
             count,
